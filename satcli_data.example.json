@@ -1,0 +1,7 @@
+{
+  "generated_at": "2026-07-23T08:00:00+00:00",
+  "techniciens": [
+    { "nom": "Dupont", "total": 24, "reussies": 22, "echouees": 2, "taux": 91.7 },
+    { "nom": "Martin", "total": 18, "reussies": 15, "echouees": 3, "taux": 83.3 }
+  ]
+}
