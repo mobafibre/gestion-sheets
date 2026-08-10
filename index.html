@@ -1,0 +1,2558 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi Techniciens — Fibre</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2360A5FA'/%3E%3Cstop offset='1' stop-color='%232563EB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%230F172A'/%3E%3Crect x='3' y='3' width='58' height='58' rx='13' fill='none' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M18 40V26M28 40V19M38 40V30M48 40V22' stroke='url(%23g)' stroke-width='4.5' stroke-linecap='round'/%3E%3Ccircle cx='48' cy='15' r='3.4' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F8FAFC;
+  --surface:#FFFFFF;
+  --ink:#0F172A;
+  --muted:#64748B;
+
+  --border:#E2E8F0;
+
+  --accent:#2563EB;
+  --accent-2:#60A5FA;
+  --accent-ink:#FFFFFF;
+
+  --teal:#0891B2;
+  --navy:#1E293B;
+
+  --ok:#16A34A;
+  --ok-bg:#DCFCE7;
+
+  --warn:#DC2626;
+  --warn-bg:#FEE2E2;
+
+  --radius:16px;
+
+  --shadow:
+      0 2px 8px rgba(15,23,42,.05),
+      0 10px 30px rgba(15,23,42,.08);
+
+  --gold-grad:linear-gradient(135deg,#2563EB,#60A5FA);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:'Space Grotesk',system-ui,sans-serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ---------- Header ---------- */
+header.topbar{
+  position:sticky; top:0; z-index:40; background:#FFFFFF;
+  border-bottom:1px solid #E2E8F0;
+}
+.topbar-inner{
+  max-width:1240px; margin:0 auto; padding:14px 24px 12px;
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+}
+.brand{display:flex; align-items:center; gap:10px; margin-right:auto;}
+.brand-mark{
+  width:36px; height:36px; border-radius:10px; background:var(--gold-grad);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  box-shadow:0 2px 10px rgba(37,99,235,.30);
+}
+.brand-mark svg{width:19px;height:19px;stroke:#fff;}
+.brand-text h1{font-size:17px; margin:0; letter-spacing:.2px; color:#0F172A;}
+.brand-text span{font-size:11px; color:var(--accent); font-family:'IBM Plex Mono',monospace; letter-spacing:.06em;}
+nav.tabs{display:flex; gap:4px; background:#F1F5F9; padding:4px; border-radius:10px;}
+nav.tabs button{
+  border:none; background:transparent; padding:8px 14px; border-radius:7px;
+  font-size:13.5px; font-weight:600; color:#64748B; cursor:pointer; font-family:inherit;
+}
+nav.tabs button.active{background:#2563EB; color:white; box-shadow:var(--shadow);}
+.auth-zone{display:flex; align-items:center; gap:10px;}
+.signal-dot{width:9px;height:9px;border-radius:50%; background:var(--warn); flex-shrink:0;}
+.signal-dot.on{background:#33C08A; animation:pulse 2.2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(51,192,138,.45);}70%{box-shadow:0 0 0 7px rgba(51,192,138,0);}100%{box-shadow:0 0 0 0 rgba(51,192,138,0);}}
+.status-text{font-size:12px; color:var(--muted);}
+.btn{
+  border:none; cursor:pointer; font-family:inherit; font-weight:600; font-size:13.5px;
+  padding:9px 16px; border-radius:9px; display:inline-flex; align-items:center; gap:7px;
+}
+.btn-primary{background:#2563EB; color:white;}
+.btn-primary:hover{background:#1D4ED8;}
+.btn-ghost{background:var(--bg); color:var(--ink); border:1px solid var(--border);}
+.btn-ghost:hover{background:#EEF2F7;}
+.btn-sm{padding:6px 11px; font-size:12.5px;}
+.cable-rule{height:3px; width:100%;
+  background:repeating-linear-gradient(90deg, var(--accent-2) 0 10px, transparent 10px 18px);
+  opacity:.6;
+}
+
+/* ---------- Layout ---------- */
+main{max-width:1240px; margin:0 auto; padding:28px 24px 80px;}
+.view{display:none;}
+.view.active{display:block;}
+.section-title{display:flex; align-items:baseline; gap:10px; margin:0 0 14px; justify-content:space-between; flex-wrap:wrap;}
+.section-title h2{font-size:15px; margin:0; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);}
+
+/* charts */
+.charts-row{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:30px;}
+@media (max-width:980px){.charts-row{grid-template-columns:1fr 1fr;}}
+@media (max-width:640px){.charts-row{grid-template-columns:1fr;}}
+.chart-card,
+.data-card,
+.config-card,
+.report-controls{background:white; border:1px solid #E2E8F0; box-shadow:0 4px 18px rgba(15,23,42,.05);}
+.chart-card{border-radius:var(--radius); padding:18px 20px; position:relative; overflow:hidden;}
+.chart-card::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--gold-grad);}
+.chart-card h3{font-size:14.5px; margin:0 0 4px;}
+.chart-card .sub{font-size:12px; color:var(--muted); margin:0 0 10px;}
+.chart-wrap{position:relative; height:190px; display:flex; align-items:center; gap:16px;}
+.chart-canvas-box{position:relative; flex:1 1 auto; min-width:0; height:100%;}
+.legend-list{font-size:12.5px; display:flex; flex-direction:column; gap:6px; min-width:120px; flex-shrink:0;}
+.legend-list li{list-style:none; display:flex; align-items:center; gap:7px;}
+.legend-list .swatch{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+.legend-list b{font-family:'IBM Plex Mono',monospace;}
+.chart-empty{font-size:12.5px; color:var(--muted); padding:20px 0;}
+.chart-wrap-gauge{height:130px;}
+.chart-wrap-gauge .chart-canvas-box{height:100px;}
+#chartWrapTech{display:block;}
+#chartWrapTech .chart-canvas-box{height:260px;}
+.tech-filter{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.tech-filter select, .tech-filter input{
+  padding:7px 10px; border:1px solid var(--border); border-radius:8px; font-family:inherit;
+  font-size:12.5px; background:var(--bg); color:var(--ink);
+}
+.tech-filter button{white-space:nowrap;}
+
+/* cards grid */
+.cards-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px;}
+.data-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:18px; box-shadow:var(--shadow);
+  transition:transform .12s ease, border-color .12s ease;
+}
+.data-card:hover{transform:translateY(-2px); border-color:var(--accent-2);}
+.data-card .icon-badge{
+  width:36px; height:36px; border-radius:9px; background:var(--bg);
+  display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+}
+.data-card .icon-badge svg{width:18px; height:18px; stroke:var(--teal);}
+.data-card h3{font-size:14.5px; margin:0 0 4px;}
+.data-card .count{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;}
+.data-card .count-label{font-size:11.5px; color:var(--muted); margin-left:4px;}
+.card-actions{margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+.card-actions .btn{width:100%; justify-content:center;}
+
+.locked-note{
+  border:1px dashed var(--border); border-radius:var(--radius); padding:22px;
+  text-align:center; color:var(--muted); font-size:13.5px; background:var(--surface);
+}
+.locked-note b{color:var(--ink);}
+
+/* fullscreen data viewer */
+.fs-overlay{position:fixed; inset:0; z-index:150; background:var(--surface); display:none; flex-direction:column;}
+.fs-overlay.open{display:flex;}
+.fs-header{display:flex; align-items:center; gap:12px; padding:16px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; background:var(--ink);}
+.fs-header h2{margin:0; font-size:16px; flex:1; color:#fff; font-family:'Space Grotesk',system-ui,sans-serif;}
+.fs-header .fs-count{font-size:12px; color:var(--accent-2); font-family:'IBM Plex Mono',monospace;}
+.fs-body{flex:1; overflow:auto; padding:20px 24px 40px;}
+.fs-table{width:100%; border-collapse:collapse; font-size:12.5px; background:var(--surface);}
+.fs-table th, .fs-table td{padding:9px 12px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap;}
+table tr:nth-child(even){background:#F8FAFC;}
+table th{background:#F1F5F9;}
+.fs-table th{position:sticky; top:0; background:var(--bg); font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:.04em; z-index:1;}
+.fs-table tr:hover td{background:var(--bg);}
+.fs-empty{padding:60px 20px; text-align:center; color:var(--muted); font-size:13.5px;}
+
+/* FAB notes/reminders */
+.fab-notes{
+  position:fixed; right:22px; bottom:22px; z-index:120;
+  background:var(--gold-grad); color:#fff; border:none; border-radius:30px;
+  padding:14px 20px; font-family:'Space Grotesk',system-ui,sans-serif; font-weight:700; font-size:13.5px;
+  display:flex; align-items:center; gap:8px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(37,99,235,.35);
+  transition:transform .12s ease;
+}
+.fab-notes:hover{transform:translateY(-2px) scale(1.02);}
+.fab-notes svg{width:17px;height:17px;}
+.notes-badge{background:rgba(255,255,255,.25); color:#fff; font-size:10.5px; font-weight:700; border-radius:10px; padding:1px 7px; margin-left:2px;}
+.note-item{border:1px solid var(--border); border-radius:10px; padding:11px 13px; margin-bottom:9px; background:var(--bg);}
+.note-item.done{opacity:.55;}
+.note-item .note-title{font-weight:600; font-size:13.5px; margin-bottom:2px;}
+.note-item .note-meta{font-size:11.5px; color:var(--muted); margin-bottom:8px;}
+.note-item .note-desc{font-size:12.5px; color:var(--ink); margin-bottom:9px; white-space:pre-wrap;}
+.note-actions{display:flex; gap:6px; flex-wrap:wrap;}
+.note-actions button{
+  border:1px solid var(--border); background:var(--surface); border-radius:7px; padding:5px 9px;
+  font-size:11.5px; font-weight:600; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:4px;
+}
+.note-actions button:hover{border-color:var(--accent);}
+.notes-empty{font-size:12.5px; color:var(--muted); text-align:center; padding:16px 0;}
+.notes-list{max-height:260px; overflow-y:auto; margin-top:16px;}
+
+/* modal */
+.overlay{position:fixed; inset:0; background:rgba(20,32,43,.45); display:none; align-items:flex-start; justify-content:center; z-index:100; padding:5vh 16px; overflow-y:auto;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface); border-radius:var(--radius); width:100%; max-width:520px; padding:22px 24px 24px; box-shadow:0 20px 50px rgba(0,0,0,.25);}
+.modal h3{margin:0 0 2px;}
+.modal .modal-sub{font-size:12.5px; color:var(--muted); margin:0 0 16px;}
+.field{margin-bottom:13px;}
+.field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
+.field input, .field select, .field textarea{
+  width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px;
+  font-family:inherit; font-size:13.5px; background:var(--bg); color:var(--ink);
+}
+.field textarea{resize:vertical; min-height:56px;}
+.modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px;}
+.form-msg{font-size:12.5px; margin-top:10px; padding:8px 10px; border-radius:8px;}
+.form-msg.err{background:var(--warn-bg); color:var(--warn);}
+.form-msg.ok{background:var(--ok-bg); color:var(--ok);}
+
+/* report */
+.report-controls{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; display:flex; gap:12px; flex-wrap:wrap; align-items:end; box-shadow:var(--shadow); margin-bottom:18px;}
+.report-controls .field{margin-bottom:0; min-width:170px;}
+.report-period-label{font-family:'Space Grotesk',system-ui,sans-serif; font-size:15px; font-weight:600; margin:0 0 12px;}
+.report-summary{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;}
+.chip{background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:12.5px; display:flex; gap:6px; align-items:center;}
+.chip b{font-family:'IBM Plex Mono',monospace;}
+.report-list{max-height:520px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow);}
+.report-item{padding:13px 18px; border-bottom:1px solid var(--border); display:flex; gap:14px; align-items:flex-start;}
+.report-item:last-child{border-bottom:none;}
+.report-item .tag{
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  padding:3px 8px; border-radius:6px; background:var(--bg); color:var(--teal); flex-shrink:0; margin-top:2px;
+}
+.report-item .tag.warn{background:var(--warn-bg); color:var(--warn);}
+.report-item .ritem-body{flex:1;}
+.report-item .ritem-title{font-size:13.5px; font-weight:600; margin-bottom:2px;}
+.report-item .ritem-meta{font-size:12px; color:var(--muted);}
+.report-item .ritem-date{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); flex-shrink:0;}
+.dept-tag{display:inline-block; font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:5px; margin-right:4px; color:#fff;}
+.report-empty{padding:40px 20px; text-align:center; color:var(--muted); font-size:13px;}
+
+/* ---------- Rapport : one-pager façon "management report" ---------- */
+.report-onepager{
+  background:#F3F6F9; border-radius:var(--radius); overflow:hidden;
+  border:1px solid var(--border); box-shadow:var(--shadow);
+}
+.rop-banner{
+  background:linear-gradient(120deg,#EAF2FF,#DCEAFF 55%,#EAF2FF);
+  padding:20px 26px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  border-bottom:4px solid var(--accent);
+}
+.rop-banner-text h2{margin:0 0 4px; color:var(--ink); font-size:19px; letter-spacing:.2px;}
+.rop-banner-text p{margin:0; color:var(--accent); font-size:12.5px; font-family:'IBM Plex Mono',monospace;}
+.rop-banner-badge{
+  background:#fff; color:var(--accent); border:1px solid rgba(37,99,235,.35);
+  padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:.06em; white-space:nowrap;
+}
+.rop-grid{display:grid; grid-template-columns:200px 1fr; gap:16px; padding:18px;}
+@media (max-width:860px){.rop-grid{grid-template-columns:1fr;}}
+.rop-side-card{
+  background:#F5F9FF; border:1px solid var(--border); border-radius:12px; padding:16px 16px 6px; height:100%;
+}
+.rop-side-card h3{color:var(--muted); font-size:12.5px; margin:0 0 12px; text-transform:uppercase; letter-spacing:.05em;}
+.rop-stat{border-bottom:1px solid var(--border); padding:10px 0 12px;}
+.rop-stat:last-child{border-bottom:none;}
+.rop-stat-num{display:block; font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; color:var(--accent);}
+.rop-stat-label{display:block; font-size:11.5px; color:var(--muted); margin-top:2px;}
+.rop-main{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+@media (max-width:860px){.rop-main{grid-template-columns:1fr;}}
+.rop-card{
+  background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px 16px;
+  box-shadow:0 2px 10px rgba(15,23,42,.04);
+}
+.rop-card h3{font-size:12.5px; margin:0 0 8px; color:var(--navy); text-transform:uppercase; letter-spacing:.04em;}
+.rop-card-wide{grid-column:1 / -1;}
+.rop-gauge-row{display:flex; align-items:center; gap:14px;}
+.rop-gauge-box{position:relative; width:130px; height:80px; flex-shrink:0;}
+.rop-gauge-row .legend-list{min-width:0; flex:1;}
+.rop-chart-tall{position:relative; height:220px;}
+.rop-tech-table-wrap{overflow-x:auto;}
+.rop-satcli-row{display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
+.rop-gauge-box-lg{position:relative; width:150px; height:92px; flex-shrink:0;}
+.rop-satcli-manual{display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-left:auto;}
+.rop-satcli-manual .field{margin-bottom:0; min-width:130px;}
+.rop-note{font-size:11px; color:var(--muted); margin-top:8px;}
+.report-list-wrap{margin-top:24px;}
+
+/* config */
+.config-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px 24px; box-shadow:var(--shadow); margin-bottom:18px;}
+.config-card h3{margin-top:0; font-size:14.5px;}
+.config-card p{font-size:12.5px; color:var(--muted); line-height:1.55;}
+.config-card ol{font-size:12.5px; color:var(--muted); line-height:1.7; padding-left:18px;}
+.config-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px 16px;}
+@media (max-width:640px){.config-grid{grid-template-columns:1fr;}}
+.config-sheet-block{border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;}
+.config-sheet-block h4{margin:0 0 8px; font-size:13px;}
+.config-sheet-head{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.config-sheet-head h4{margin:0;}
+.config-sheet-del{background:none; border:none; color:var(--warn); font-size:12px; cursor:pointer; padding:2px 4px;}
+.config-sheet-del:hover{text-decoration:underline;}
+code{background:var(--bg); padding:1px 6px; border-radius:5px; font-family:'IBM Plex Mono',monospace; font-size:12px;}
+
+/* performance (intégré nativement, plus d'iframe) */
+.perf-infos{background:#FEF3C7; border:1px solid #FDE68A; border-radius:10px; padding:12px 16px; font-size:12.5px; color:#92400E; margin-bottom:18px; display:none;}
+.perf-infos.show{display:block;}
+.semaine-select{display:flex; align-items:center; gap:8px; font-size:13px;}
+.mois-select{display:flex; align-items:center; justify-content:center; gap:8px; font-size:13px; margin:2px 0 16px;}
+.week-group-th{text-align:center; border-left:1px solid var(--border);}
+td.week-cell, th.week-cell{border-left:1px solid var(--border);}
+.trend-up{color:var(--ok); font-weight:700;}
+.trend-down{color:var(--warn); font-weight:700;}
+.trend-flat{color:var(--muted); font-weight:700;}
+.perf-tables-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px;}
+@media (max-width:900px){.perf-tables-grid{grid-template-columns:1fr;}}
+.section-foot-note{font-size:12px; color:var(--muted); margin-top:10px; text-align:center;}
+.rop-mini-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+@media (max-width:860px){.rop-mini-grid{grid-template-columns:1fr;}}
+.rop-mini-gauge{text-align:center;}
+.rop-mini-gauge h4{font-size:11px; margin:0 0 6px; color:var(--navy); text-transform:uppercase; letter-spacing:.03em;}
+.rop-mini-gauge .rop-gauge-box{width:120px; height:76px; margin:0 auto;}
+.rop-mini-gauge .legend-list{margin-top:6px; text-align:left; font-size:11.5px;}
+
+/* satcli */
+.satcli-import-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:6px;}
+@media (max-width:860px){.satcli-import-grid{grid-template-columns:1fr;}}
+.satcli-import-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; text-align:center; box-shadow:var(--shadow);
+}
+.satcli-import-card h4{margin:0 0 10px; font-size:13.5px;}
+.satcli-import-status{font-size:12px; color:var(--muted); margin:9px 0 0;}
+#satcliStatut.ok{color:var(--ok);}
+#satcliStatut.err{color:var(--warn);}
+.satcli-table{width:100%; border-collapse:collapse; font-size:13px;}
+.satcli-table th{text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; padding:9px 8px; border-bottom:1px solid var(--border); font-family:'IBM Plex Mono',monospace;}
+.satcli-table th.num, .satcli-table td.num{text-align:center;}
+.satcli-table td{padding:9px 8px; border-bottom:1px solid #f0f2f6;}
+.satcli-table tr.total td{font-weight:700; border-top:2px solid var(--border); background:var(--bg);}
+.pct-good{color:var(--ok); font-weight:700;}
+.pct-bad{color:var(--warn); font-weight:700;}
+.pct-mid{color:var(--accent); font-weight:700;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 12h4M16 12h4M9 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"/></svg>
+      </div>
+      <div class="brand-text">
+        <h1>Suivi Techniciens</h1>
+        <span>FIBRE · 6 REGISTRES</span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-view="dashboard">Tableau de bord</button>
+      <button class="tab-btn" data-view="report">📊 Rapport</button>
+      <button class="tab-btn" data-view="performance">📈 Performance</button>
+      <button class="tab-btn" data-view="satcli">🛰 SatCli</button>
+      <button class="tab-btn" data-view="config">⚙ Configuration</button>
+    </nav>
+    <div class="auth-zone">
+      <span class="signal-dot" id="signalDot"></span>
+      <span class="status-text" id="statusText">Non configuré</span>
+      <button class="btn btn-primary btn-sm" id="signInBtn">Se connecter avec Google</button>
+    </div>
+  </div>
+  <div class="cable-rule"></div>
+</header>
+
+<main>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="view active" id="view-dashboard">
+
+    <div class="section-title"><h2>Vue d'ensemble</h2></div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Conformité des documents</h3>
+        <p class="sub">Badge, photo, AIPR — d'après « Documents_Techniciens »</p>
+        <div class="chart-wrap chart-wrap-gauge" id="chartWrapDocs">
+          <div class="chart-empty">Connectez-vous pour charger les données.</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Réclamations clients</h3>
+        <p class="sub">Corrigé vs en cours — d'après « Suivi_Réclamations »</p>
+        <div class="chart-wrap chart-wrap-gauge" id="chartWrapReclam">
+          <div class="chart-empty">Connectez-vous pour charger les données.</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Retards & absences</h3>
+        <p class="sub">Justifié vs non justifié — d'après « Suivi_Retards_Absences_Techniciens »</p>
+        <div class="chart-wrap chart-wrap-gauge" id="chartWrapRetards">
+          <div class="chart-empty">Connectez-vous pour charger les données.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>Retards & absences par technicien</h2>
+      <div class="tech-filter">
+        <select id="techFilterType">
+          <option value="all">Toute la période</option>
+          <option value="week">Semaine</option>
+          <option value="month">Mois</option>
+        </select>
+        <input type="week" id="techFilterInput" style="display:none;">
+        <button class="btn btn-ghost btn-sm" id="techFilterResetBtn">Réinitialiser</button>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:30px;">
+      <h3>Répartition par technicien</h3>
+      <p class="sub" id="techChartSub">Nombre d'absences / retards / demi-journées — d'après « Suivi_Retards_Absences_Techniciens »</p>
+      <div class="chart-wrap" id="chartWrapTech" style="height:260px;">
+        <div class="chart-empty">Connectez-vous pour charger les données.</div>
+      </div>
+    </div>
+
+    <div class="section-title"><h2>SatCli — Satisfaction client</h2></div>
+    <div class="charts-row" id="satcliGaugesDash" style="margin-bottom:30px;"></div>
+
+    <div class="section-title"><h2>Registres</h2></div>
+    <div class="cards-grid" id="cardsGrid"></div>
+
+  </section>
+
+  <!-- ===================== REPORT ===================== -->
+  <section class="view" id="view-report">
+    <div class="section-title"><h2>Rapport détaillé</h2></div>
+    <div class="report-controls">
+      <div class="field">
+        <label>Période</label>
+        <select id="periodType">
+          <option value="week">Semaine</option>
+          <option value="month">Mois</option>
+        </select>
+      </div>
+      <div class="field" id="periodInputWrap">
+        <label id="periodInputLabel">Choisir la semaine</label>
+        <input type="week" id="periodInput">
+      </div>
+      <button class="btn btn-primary" id="generateReportBtn">Générer le rapport</button>
+      <button class="btn btn-ghost" id="downloadReportBtn" style="display:none;">⬇ Télécharger en PDF</button>
+    </div>
+
+    <div id="reportEmptyWrap">
+      <div class="report-empty">Choisissez une période puis cliquez sur « Générer le rapport ».</div>
+    </div>
+
+    <div id="reportOnePager" class="report-onepager" style="display:none;">
+      <div class="rop-banner">
+        <div class="rop-banner-text">
+          <h2>Rapport de suivi — Techniciens Fibre</h2>
+          <p id="reportPeriodLabel">Période —</p>
+        </div>
+        <div class="rop-banner-badge" id="reportTotalBadge">0 ÉVÈNEMENT</div>
+      </div>
+
+      <div class="rop-grid">
+        <aside>
+          <div class="rop-side-card">
+            <h3>Vue d'ensemble</h3>
+            <div class="rop-stat"><span class="rop-stat-num" id="ropStatReclam">0</span><span class="rop-stat-label">Réclamations</span></div>
+            <div class="rop-stat"><span class="rop-stat-num" id="ropStatRetards">0</span><span class="rop-stat-label">Retards / absences</span></div>
+            <div class="rop-stat"><span class="rop-stat-num" id="ropStatNonJust">0</span><span class="rop-stat-label">Non justifiés</span></div>
+            <div class="rop-stat"><span class="rop-stat-num" id="ropStatTech">0</span><span class="rop-stat-label">Techniciens concernés</span></div>
+          </div>
+        </aside>
+
+        <div class="rop-main">
+          <div class="rop-card">
+            <h3>Conformité — Documents</h3>
+            <div class="rop-gauge-row">
+              <div class="rop-gauge-box"><canvas id="canvasReportDocs"></canvas></div>
+              <ul class="legend-list" id="legendReportDocs"></ul>
+            </div>
+          </div>
+          <div class="rop-card">
+            <h3>Réclamations clients</h3>
+            <div class="rop-gauge-row">
+              <div class="rop-gauge-box"><canvas id="canvasReportReclam"></canvas></div>
+              <ul class="legend-list" id="legendReportReclam"></ul>
+            </div>
+          </div>
+          <div class="rop-card">
+            <h3>Retards & absences</h3>
+            <div class="rop-gauge-row">
+              <div class="rop-gauge-box"><canvas id="canvasReportRetards"></canvas></div>
+              <ul class="legend-list" id="legendReportRetards"></ul>
+            </div>
+          </div>
+
+          <div class="rop-card rop-card-wide">
+            <h3>Absences & retards par technicien — sur la période</h3>
+            <div class="rop-chart-tall" id="chartWrapReportTech"><canvas id="canvasReportTech"></canvas></div>
+          </div>
+
+          <div class="rop-card rop-card-wide">
+            <h3>Comparatif hebdomadaire par technicien</h3>
+            <div class="rop-tech-table-wrap" id="reportWeeklyTableWrap"></div>
+            <p class="rop-note" id="reportWeeklyNote"></p>
+          </div>
+
+          <div class="rop-card rop-card-wide">
+            <h3>SatCli — Satisfaction client</h3>
+            <div class="rop-mini-grid" id="satcliGaugesReport"></div>
+            <div class="rop-tech-table-wrap" id="reportSatcliTableWrap" style="margin-top:14px;"></div>
+            <p class="rop-note">Cumul de toutes les données importées dans l'onglet SatCli (RACC_OK / RACC_NOK / SAV) — indépendant de la période choisie ci-dessus.</p>
+            <p class="rop-note">Généré le <span id="reportGeneratedAt"></span> — Suivi Techniciens Fibre</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-list-wrap" id="reportListWrap" style="display:none;">
+      <div class="section-title"><h2>Journal détaillé (consultation uniquement, non imprimé)</h2></div>
+      <div class="report-list" id="reportList"></div>
+    </div>
+  </section>
+
+  <!-- ===================== PERFORMANCE ===================== -->
+  <section class="view" id="view-performance">
+    <div class="section-title"><h2>Performance techniciens — SAV / Raccordement</h2></div>
+
+    <div class="config-card">
+      <h3>📂 Import du fichier hebdomadaire</h3>
+      <p>Importez votre export Excel (SAV + Raccordement). Une fois importé, les données restent <b>enregistrées dans ce navigateur</b> — elles ne disparaissent pas en rechargeant la page, jusqu'à ce que vous importiez un nouveau fichier à la place.</p>
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:12px;">
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('perfFichierInput').click()">📂 Importer données</button>
+        <input type="file" id="perfFichierInput" accept=".xlsx,.xls" style="display:none;">
+        <span id="perfNomFichier" style="color:var(--muted); font-size:13px;">Aucun fichier importé</span>
+        <div class="semaine-select" id="perfSemaineSelectBox" style="display:none;">
+          <label for="perfSemaineSelect">Semaine :</label>
+          <select id="perfSemaineSelect"></select>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="perfExportPdfBtn" disabled>⬇ Télécharger en PDF</button>
+      </div>
+      <div id="perfStatutImport" style="font-size:13px; margin-top:8px;"></div>
+    </div>
+
+    <div class="perf-infos" id="perfInfosBox"></div>
+
+    <div id="perfPageRoot">
+      <div class="perf-tables-grid">
+        <div class="chart-card">
+          <h3>SAV <small id="perfSousTitreSAV" style="font-weight:400;color:var(--muted);"></small></h3>
+          <div id="perfTableSAV"><div class="chart-empty">Importez un fichier Excel pour afficher les données.</div></div>
+        </div>
+        <div class="chart-card">
+          <h3>Raccordement <small id="perfSousTitreRacco" style="font-weight:400;color:var(--muted);"></small></h3>
+          <div id="perfTableRacco"><div class="chart-empty">Importez un fichier Excel pour afficher les données.</div></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Comparatif hebdomadaire par technicien</h3>
+        <p class="sub" id="perfSousTitreComparatif">Volume et taux de réussite semaine par semaine</p>
+        <div class="mois-select" id="perfMoisSelectBox" style="display:none;">
+          <label for="perfMoisSelect">Mois affiché :</label>
+          <select id="perfMoisSelect"></select>
+        </div>
+        <div class="rop-tech-table-wrap" id="perfTableComparatif"><div class="chart-empty">Importez un fichier avec une colonne date pour comparer les semaines entre elles.</div></div>
+        <p class="section-foot-note" id="perfFootNoteComparatif"></p>
+      </div>
+
+      <div class="chart-card">
+        <h3>Taux de réussite par technicien — SAV vs Raccordement</h3>
+        <p class="sub" id="perfSousTitreTauxCompares">Comparaison directe des deux typologies</p>
+        <div class="rop-tech-table-wrap" id="perfTableTauxCompares"><div class="chart-empty">Importez un fichier Excel pour afficher les données.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SATCLI ===================== -->
+  <section class="view" id="view-satcli">
+    <div class="section-title"><h2>SatCli — Satisfaction client</h2></div>
+
+    <div class="config-card">
+      <h3>🔗 Comment ça marche</h3>
+      <p>Importez ici les 3 exports Excel de retours clients : <b>RACC_OK</b>, <b>RACC_NOK</b> et <b>SAV</b>. La colonne <code>NOTE</code> détermine si un retour est positif :</p>
+      <ul style="margin:8px 0 4px 18px; padding:0; font-size:13px; line-height:1.7;">
+        <li><b>Raccordement</b> (OK et NOK) : seule la note <b>5★</b> est comptée comme un retour positif.</li>
+        <li><b>SAV</b> : les notes <b>3★, 4★ et 5★</b> sont comptées comme des retours positifs.</li>
+      </ul>
+      <p style="margin-top:8px;">Une fois importé, chaque fichier reste <b>enregistré dans ce navigateur</b> — inutile de le réimporter à chaque visite. Réimportez simplement un fichier pour remplacer les données précédentes par une version plus récente.</p>
+    </div>
+
+    <div class="satcli-import-grid">
+      <div class="satcli-import-card">
+        <h4>Raccordement OK</h4>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('satcliFileRaccoOk').click()">📂 Importer RACC_OK</button>
+        <input type="file" id="satcliFileRaccoOk" accept=".xlsx,.xls,.csv" style="display:none;">
+        <p class="satcli-import-status" id="satcliStatusRaccoOk">Aucun fichier importé</p>
+      </div>
+      <div class="satcli-import-card">
+        <h4>Raccordement NOK</h4>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('satcliFileRaccoNok').click()">📂 Importer RACC_NOK</button>
+        <input type="file" id="satcliFileRaccoNok" accept=".xlsx,.xls,.csv" style="display:none;">
+        <p class="satcli-import-status" id="satcliStatusRaccoNok">Aucun fichier importé</p>
+      </div>
+      <div class="satcli-import-card">
+        <h4>SAV</h4>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('satcliFileSav').click()">📂 Importer SAV</button>
+        <input type="file" id="satcliFileSav" accept=".xlsx,.xls,.csv" style="display:none;">
+        <p class="satcli-import-status" id="satcliStatusSav">Aucun fichier importé</p>
+      </div>
+    </div>
+    <div id="satcliStatut" style="font-size:13px; margin:4px 0 20px;"></div>
+
+    <div class="charts-row" id="satcliGaugesTab"></div>
+
+    <div class="chart-card">
+      <h3>Détail par typologie</h3>
+      <p class="sub" id="satcliSub">Retour positif / négatif / taux — par source importée</p>
+      <div id="satcliTableWrap"><div class="chart-empty">Importez vos 3 fichiers pour afficher les résultats.</div></div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Détail par technicien</h3>
+      <p class="sub">Cumul RACC_OK + RACC_NOK + SAV</p>
+      <div id="satcliTechTableWrap"><div class="chart-empty">Aucune donnée pour le moment.</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== CONFIG ===================== -->
+  <section class="view" id="view-config">
+    <div class="section-title"><h2>Configuration Google</h2></div>
+
+    <div class="config-card">
+      <h3>1 — Identifiant OAuth Google</h3>
+      <p>Créez un « ID client OAuth » de type <b>Application Web</b> dans Google Cloud Console, activez l'API Google Sheets, puis ajoutez l'adresse à laquelle vous hébergez ce fichier dans « Origines JavaScript autorisées ». Le mode <code>file://</code> ne fonctionne pas avec la connexion Google — il faut un vrai lien http/https. Pour ce fichier, ajoutez exactement&nbsp;: <code>https://mobafibre.github.io</code></p>
+      <div class="field">
+        <label>Client ID</label>
+        <input type="text" id="cfgClientId" placeholder="xxxxxxxx.apps.googleusercontent.com">
+      </div>
+    </div>
+
+    <div class="config-card">
+      <h3>2 — Vos feuilles Google Sheets</h3>
+      <p>Pour chaque registre, collez l'ID de la feuille (dans l'URL entre <code>/d/</code> et <code>/edit</code>) et le nom de l'onglet exact.</p>
+      <div id="cfgSheetsWrap"></div>
+      <button class="btn btn-ghost btn-sm" id="cfgAddSheetBtn" style="margin-top:14px;">➕ Ajouter une feuille</button>
+    </div>
+
+    <div class="config-card">
+      <h3>3 — Enregistrer</h3>
+      <p>Ces réglages sont enregistrés dans ce navigateur : ils restent actifs même après déconnexion ou fermeture de la page.</p>
+      <button class="btn btn-primary" id="saveConfigBtn">Enregistrer et recharger</button>
+      <span id="configSavedMsg" style="font-size:12.5px;color:var(--ok);margin-left:10px;display:none;">Enregistré ✓</span>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===================== MODAL ===================== -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<!-- ===================== FULLSCREEN DATA VIEWER ===================== -->
+<div class="fs-overlay" id="fsOverlay">
+  <div class="fs-header">
+    <h2 id="fsTitle">—</h2>
+    <span class="fs-count" id="fsCount"></span>
+    <a id="fsSourceLink" href="#" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">🔗 Ouvrir la feuille source</a>
+    <button class="btn btn-ghost btn-sm" id="fsCloseBtn">✕ Fermer</button>
+  </div>
+  <div class="fs-body" id="fsBody"></div>
+</div>
+
+<!-- ===================== NOTES / RAPPELS FAB ===================== -->
+<button class="fab-notes" id="fabNotesBtn" title="Notes & rappels">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c1.1 0 2-.9 2-2h-4a2 2 0 0 0 2 2Z" fill="currentColor" stroke="none"/><path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2Z"/></svg>
+  Rappels <span class="notes-badge" id="notesBadge">0</span>
+</button>
+
+<div class="overlay" id="notesOverlay">
+  <div class="modal" id="notesModalBox" style="max-width:480px;">
+    <h3>🔔 Notes & rappels</h3>
+    <p class="modal-sub">Créez un rappel, puis ajoutez-le directement à votre agenda Google ou envoyez-vous une alerte par email.</p>
+    <div class="field">
+      <label>Titre *</label>
+      <input type="text" id="noteTitle" placeholder="Ex : Relancer le client X">
+    </div>
+    <div style="display:flex; gap:10px;">
+      <div class="field" style="flex:1;">
+        <label>Date</label>
+        <input type="date" id="noteDate">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Heure</label>
+        <input type="time" id="noteTime" value="09:00">
+      </div>
+    </div>
+    <div class="field">
+      <label>Détails</label>
+      <textarea id="noteDesc" placeholder="Description, contexte, à faire..."></textarea>
+    </div>
+    <div class="modal-actions" style="justify-content:flex-start;">
+      <button class="btn btn-primary" id="saveNoteBtn">+ Enregistrer la note</button>
+    </div>
+    <div class="notes-list" id="notesList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="closeNotesBtn">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG — modifiez ces valeurs pour rendre votre configuration permanente.
+   ========================================================================= */
+const CONFIG = {
+  CLIENT_ID: "212153744862-hd184rqdipcbdopk9s6vtpbg875911j8.apps.googleusercontent.com",
+  SHEETS: {
+    controle:     { spreadsheetId: "1BS6Cb3p6KDNwttHF4l96E2S6gX0qWe8DkwiKy3XyTxg", tab: "Sheet1" },
+    documents:    { spreadsheetId: "1Si8cPXcuXXCp8VCsbf-ZprueicGkbD-G7FJMy8bNw4U", tab: "Sheet1" },
+    idlms:        { spreadsheetId: "1W91eTcJFaBFinilZarQ4aFcoC4wtg5fvUU45rF4gPC0", tab: "Sheet1" },
+    imei:         { spreadsheetId: "12s9jPMkVMj72vDJpbnvSDhUKoCiEdIjIzDMTmzp3RLQ", tab: "Sheet1" },
+    reclamations: { spreadsheetId: "11Q0ya3-EMAS5zg9uz1EUkM0QJIsxxcKIzG12_Ip4S5M", tab: "Sheet1" },
+    retards:      { spreadsheetId: "1FNT3fQthST037M8de9xdyPl9ZJbBj_SQvzPGg8fZ3yo", tab: "Sheet1" }
+  }
+};
+
+const DEPT_COLORS = {
+  "91":"#C9971F","93":"#0F5C4A","75":"#1B2A4A","77":"#8A3B2A","24":"#5B3E8A","40":"#2E6B4F"
+};
+function deptColor(d){ return DEPT_COLORS[String(d).trim()] || "#5B6B7A"; }
+
+const ICONS = {
+  clipboard:'<path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><rect x="5" y="6" width="14" height="15" rx="2"/><path d="M9 12h6M9 16h6"/>',
+  badge:'<circle cx="12" cy="9" r="4"/><path d="M8 13c-2 0-3 1-3 3v3h14v-3c0-2-1-3-3-3"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M19 4l2 2"/>',
+  signal:'<path d="M4 18v-3M9 18v-7M14 18v-11M19 18V6"/>',
+  headset:'<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M20 20a3 3 0 0 1-3 3h-3"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>'
+};
+
+/* =========================================================================
+   TABLES — structure des 5 registres (ordre des colonnes = ordre des feuilles)
+   ========================================================================= */
+const TABLES = {
+  controle: {
+    label: "Contrôle Technicien", icon:"clipboard", dateColIndex: 2,
+    columns: [
+      { key:"technicien", label:"Technicien", type:"text", required:true },
+      { key:"departement", label:"Département", type:"select", options:["91","93","75","77","24","40"] },
+      { key:"date", label:"Date", type:"date", required:true },
+      { key:"equipement", label:"Équipement", type:"select", options:["OK","NOK"] },
+      { key:"commentaire1", label:"Commentaire (équipement)", type:"textarea" },
+      { key:"repeteur", label:"Répéteur", type:"select", options:["OK","N"] },
+      { key:"autresconso", label:"Autres consommables", type:"select", options:["Ok","N","-"] },
+      { key:"commentaire2", label:"Commentaire (consommables)", type:"textarea" }
+    ]
+  },
+  documents: {
+    label: "Documents Techniciens", icon:"badge", dateColIndex: null,
+    columns: [
+      { key:"technicien", label:"Technicien", type:"text", required:true },
+      { key:"badge", label:"Badge", type:"select", options:["OUI","NON"] },
+      { key:"photo", label:"Photo", type:"select", options:["OUI","NON"] },
+      { key:"manquements", label:"Manquements", type:"select", options:["CONFORME","AIPR EXPIRE","AUTRE"] }
+    ]
+  },
+  idlms: {
+    label: "ID LMS", icon:"key", dateColIndex: null,
+    columns: [
+      { key:"idlms", label:"ID LMS (email)", type:"text", required:true },
+      { key:"partenaire", label:"Partenaire", type:"text", default:"MOBA FIBRE" },
+      { key:"dept", label:"Département", type:"select", options:["91","93","75","77","24","40"] },
+      { key:"tech", label:"Technicien", type:"text" },
+      { key:"mdp", label:"Mot de passe LMS", type:"text" }
+    ]
+  },
+  imei: {
+    label: "Suivi IMEI Répéteur", icon:"signal", dateColIndex: 3,
+    columns: [
+      { key:"dept", label:"Département", type:"select", options:["91","93","75","77","24","40"] },
+      { key:"imei", label:"IMEI", type:"text", required:true },
+      { key:"depot", label:"Dépôt", type:"text", default:"Garges" },
+      { key:"dateattribution", label:"Date attribution", type:"date" },
+      { key:"partenaire", label:"Partenaire", type:"text", default:"MOBA" },
+      { key:"technicien", label:"Technicien", type:"text" },
+      { key:"datetech", label:"Date attribution technicien", type:"date" },
+      { key:"statut", label:"Statut", type:"select", options:["Stock","Installé"] },
+      { key:"eps", label:"EPS", type:"text" },
+      { key:"date2", label:"Date", type:"date" },
+      { key:"commentaire", label:"Commentaire", type:"textarea" }
+    ]
+  },
+  reclamations: {
+    label: "Suivi Réclamations", icon:"headset", dateColIndex: 3,
+    columns: [
+      { key:"reference", label:"Référence", type:"text" },
+      { key:"eps", label:"EPS", type:"text" },
+      { key:"dept", label:"Département", type:"select", options:["91","93","75","77","24","40"] },
+      { key:"datereclam", label:"Date réclamation", type:"date", required:true },
+      { key:"statut", label:"Statut", type:"select", options:["OK","En attente client","en cours"] },
+      { key:"techniciens", label:"Technicien(s)", type:"text" },
+      { key:"contact", label:"Contact client", type:"text" },
+      { key:"commentaire", label:"Commentaire", type:"textarea" }
+    ]
+  },
+  retards: {
+    label: "Retards & Absences", icon:"clock", dateColIndex: 0,
+    columns: [
+      { key:"date", label:"Date", type:"date", required:true },
+      { key:"technicien", label:"Technicien", type:"text", required:true },
+      { key:"type", label:"Type d'événement", type:"select", options:["Absence","Retard","Demi-journée"] },
+      { key:"heurearrivee", label:"Heure arrivée", type:"text" },
+      { key:"heureprevue", label:"Heure prévue", type:"text" },
+      { key:"motif", label:"Motif / Justification", type:"textarea" },
+      { key:"justifie", label:"Justifié ?", type:"select", options:["Oui","Non"] }
+    ]
+  }
+};
+
+/* =========================================================================
+   PERSISTANCE DE LA CONFIGURATION (Client ID, ID/onglet des feuilles,
+   et feuilles personnalisées ajoutées via « + Ajouter une feuille »)
+   — reste enregistrée même après déconnexion / fermeture du navigateur.
+   ========================================================================= */
+const CONFIG_STORAGE_KEY = 'suiviTech_config_v1';
+const CUSTOM_TABLES_STORAGE_KEY = 'suiviTech_customTables_v1';
+
+function loadPersistedConfig(){
+  try{
+    const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    if(saved.CLIENT_ID) CONFIG.CLIENT_ID = saved.CLIENT_ID;
+    if(saved.SHEETS){
+      Object.keys(saved.SHEETS).forEach(k=>{ CONFIG.SHEETS[k] = saved.SHEETS[k]; });
+    }
+  }catch(e){}
+}
+function savePersistedConfig(){
+  try{ localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify({ CLIENT_ID: CONFIG.CLIENT_ID, SHEETS: CONFIG.SHEETS })); }catch(e){}
+}
+function loadCustomTables(){
+  try{
+    const raw = localStorage.getItem(CUSTOM_TABLES_STORAGE_KEY);
+    if(!raw) return;
+    const list = JSON.parse(raw);
+    list.forEach(t=>{
+      TABLES[t.key] = { label:t.label, icon:t.icon||'clipboard', dateColIndex:t.dateColIndex, columns:t.columns, custom:true };
+      if(!CONFIG.SHEETS[t.key]) CONFIG.SHEETS[t.key] = { spreadsheetId:'', tab:'Sheet1' };
+    });
+  }catch(e){}
+}
+function saveCustomTables(){
+  const list = Object.keys(TABLES).filter(k=>TABLES[k].custom).map(k=>({
+    key:k, label:TABLES[k].label, icon:TABLES[k].icon, dateColIndex:TABLES[k].dateColIndex, columns:TABLES[k].columns
+  }));
+  try{ localStorage.setItem(CUSTOM_TABLES_STORAGE_KEY, JSON.stringify(list)); }catch(e){}
+}
+function slugifyKey(str){
+  return 'custom_' + String(str).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,24) || ('custom_' + Date.now());
+}
+loadPersistedConfig();
+loadCustomTables();
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+const state = {
+  accessToken:null, data:{}, tokenClient:null,
+  chartDocs:null, chartReclam:null, chartRetards:null, chartTech:null,
+  chartReportDocs:null, chartReportReclam:null, chartReportRetards:null, chartReportTech:null,
+  techFilterRange:null, lastReportRange:null, lastReportItems:null,
+  notes:[]
+};
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+function parseFrDate(str){
+  if(!str) return null;
+  const parts = String(str).trim().split(/[\/\-]/);
+  if(parts.length < 3) return null;
+  let [d,m,y] = parts.map(p=>parseInt(p,10));
+  if(y < 100) y += 2000;
+  if(!d || !m || !y) return null;
+  return new Date(y, m-1, d);
+}
+function fmtDate(dt){
+  if(!dt) return "—";
+  return dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function iconSvg(name){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;
+}
+function escapeHtml(str){
+  return String(str==null?'':str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =========================================================================
+   RENDER: CARDS
+   ========================================================================= */
+function renderCards(){
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+  Object.keys(TABLES).forEach(key=>{
+    const t = TABLES[key];
+    const rows = state.data[key] || [];
+    const card = document.createElement('div');
+    card.className = 'data-card';
+    card.innerHTML = `
+      <div class="icon-badge">${iconSvg(t.icon)}</div>
+      <h3>${t.label}</h3>
+      <div><span class="count">${rows.length}</span><span class="count-label">entrées</span></div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm" data-action="add">+ Ajouter une entrée</button>
+        <button class="btn btn-ghost btn-sm" data-action="view">📄 Accéder aux données</button>
+      </div>
+    `;
+    card.querySelector('[data-action="add"]').onclick = ()=>openAddModal(key);
+    card.querySelector('[data-action="view"]').onclick = ()=>openDataFullscreen(key);
+    grid.appendChild(card);
+  });
+}
+
+/* =========================================================================
+   FULLSCREEN DATA VIEWER — affiche la feuille source en plein écran
+   ========================================================================= */
+function openDataFullscreen(key){
+  const t = TABLES[key];
+  const cfg = CONFIG.SHEETS[key];
+  const rows = state.data[key] || [];
+  document.getElementById('fsTitle').textContent = t.label;
+  document.getElementById('fsCount').textContent = `${rows.length} entrée${rows.length>1?'s':''}`;
+  const link = document.getElementById('fsSourceLink');
+  if(cfg && cfg.spreadsheetId){
+    link.href = `https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/edit`;
+    link.style.display = '';
+  } else {
+    link.style.display = 'none';
+  }
+
+  const body = document.getElementById('fsBody');
+  if(!state.accessToken){
+    body.innerHTML = '<div class="fs-empty">Connectez-vous d\'abord avec Google pour charger les données de cette feuille.</div>';
+  } else if(rows.length === 0){
+    body.innerHTML = '<div class="fs-empty">Aucune donnée pour le moment dans cette feuille.</div>';
+  } else {
+    const headers = t.columns.map(c=>c.label);
+    body.innerHTML = `<table class="fs-table"><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${headers.map((h,i)=>{
+        const v = r[i];
+        return `<td>${(v!==undefined && v!=='') ? escapeHtml(v) : '—'}</td>`;
+      }).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  document.getElementById('fsOverlay').classList.add('open');
+}
+document.getElementById('fsCloseBtn').onclick = ()=> document.getElementById('fsOverlay').classList.remove('open');
+
+/* =========================================================================
+   RENDER: CHARTS
+   ========================================================================= */
+function renderCharts(){
+  renderDocsChart();
+  renderReclamChart();
+  renderRetardsChart();
+  renderTechChart();
+}
+
+function computeDocsStats(rows){
+  let conforme = 0, nonConforme = 0;
+  rows.forEach(r=>{
+    const v = (r[3] || '').toString().trim().toUpperCase();
+    if(v === 'CONFORME') conforme++; else nonConforme++;
+  });
+  return { conforme, nonConforme };
+}
+function computeReclamStats(rows){
+  let corrige = 0, encours = 0;
+  rows.forEach(r=>{
+    const v = (r[4] || '').toString().trim().toLowerCase();
+    if(v === 'ok') corrige++; else encours++;
+  });
+  return { corrige, encours };
+}
+function computeRetardsStats(rows){
+  let justifie = 0, nonJustifie = 0;
+  rows.forEach(r=>{
+    const v = (r[6] || '').toString().trim().toLowerCase();
+    if(v === 'oui') justifie++; else nonJustifie++;
+  });
+  return { justifie, nonJustifie };
+}
+function computeTechStats(rows){
+  const byTech = {};
+  rows.forEach(r=>{
+    const tech = (r[1] || 'Inconnu').toString().trim() || 'Inconnu';
+    const type = (r[2] || 'Autre').toString().trim();
+    if(!byTech[tech]) byTech[tech] = { Absence:0, Retard:0, 'Demi-journée':0 };
+    if(byTech[tech][type] !== undefined) byTech[tech][type]++; else byTech[tech]['Demi-journée']++;
+  });
+  return byTech;
+}
+function filterRowsByRange(rows, dateColIndex, range){
+  if(!range || dateColIndex === null || dateColIndex === undefined) return rows;
+  return rows.filter(r=>{
+    const dt = parseFrDate(r[dateColIndex]);
+    return dt && dt >= range.start && dt <= range.end;
+  });
+}
+
+function renderDocsChart(){
+  const wrap = document.getElementById('chartWrapDocs');
+  const rows = state.data.documents || [];
+  if(!state.accessToken){ return; }
+  if(rows.length === 0){
+    wrap.innerHTML = '<div class="chart-empty">Aucune donnée dans « Documents_Techniciens ».</div>';
+    return;
+  }
+  const { conforme, nonConforme } = computeDocsStats(rows);
+  wrap.innerHTML = `<div class="chart-canvas-box"><canvas id="canvasDocs"></canvas></div><ul class="legend-list" id="legendDocs"></ul>`;
+  if(state.chartDocs) state.chartDocs.destroy();
+  state.chartDocs = renderGaugeHalf('canvasDocs', conforme, conforme+nonConforme, '#1E8E5A');
+  document.getElementById('legendDocs').innerHTML = `
+    <li><span class="swatch" style="background:#1E8E5A"></span>Conforme <b>${conforme}</b></li>
+    <li><span class="swatch" style="background:#C0392B"></span>Non conforme <b>${nonConforme}</b></li>`;
+}
+function renderReclamChart(){
+  const wrap = document.getElementById('chartWrapReclam');
+  const rows = state.data.reclamations || [];
+  if(!state.accessToken){ return; }
+  if(rows.length === 0){
+    wrap.innerHTML = '<div class="chart-empty">Aucune donnée dans « Suivi_Réclamations ».</div>';
+    return;
+  }
+  const { corrige, encours } = computeReclamStats(rows);
+  wrap.innerHTML = `<div class="chart-canvas-box"><canvas id="canvasReclam"></canvas></div><ul class="legend-list" id="legendReclam"></ul>`;
+  if(state.chartReclam) state.chartReclam.destroy();
+  state.chartReclam = renderGaugeHalf('canvasReclam', corrige, corrige+encours, '#C9971F');
+  document.getElementById('legendReclam').innerHTML = `
+    <li><span class="swatch" style="background:#C9971F"></span>Corrigé <b>${corrige}</b></li>
+    <li><span class="swatch" style="background:#1B2A4A"></span>En cours <b>${encours}</b></li>`;
+}
+
+document.getElementById('techFilterType').addEventListener('change', (e)=>{
+  document.getElementById('techFilterInput').style.display = e.target.value === 'all' ? 'none' : '';
+  document.getElementById('techFilterInput').type = e.target.value === 'month' ? 'month' : 'week';
+  applyTechFilter();
+});
+document.getElementById('techFilterInput').addEventListener('change', applyTechFilter);
+document.getElementById('techFilterResetBtn').onclick = ()=>{
+  document.getElementById('techFilterType').value = 'all';
+  document.getElementById('techFilterInput').style.display = 'none';
+  document.getElementById('techFilterInput').value = '';
+  state.techFilterRange = null;
+  renderTechChart();
+};
+function applyTechFilter(){
+  const type = document.getElementById('techFilterType').value;
+  const val = document.getElementById('techFilterInput').value;
+  if(type === 'all' || !val){ state.techFilterRange = null; }
+  else { state.techFilterRange = getRangeFromTypeVal(type, val); }
+  renderTechChart();
+}
+
+function renderTechChart(){
+  const wrap = document.getElementById('chartWrapTech');
+  const sub = document.getElementById('techChartSub');
+  let rows = state.data.retards || [];
+  if(!state.accessToken){ return; }
+  if(state.techFilterRange){
+    rows = filterRowsByRange(rows, 0, state.techFilterRange);
+    sub.textContent = `Du ${fmtDate(state.techFilterRange.start)} au ${fmtDate(state.techFilterRange.end)} — d'après « Suivi_Retards_Absences_Techniciens »`;
+  } else {
+    sub.textContent = "Toute la période — d'après « Suivi_Retards_Absences_Techniciens »";
+  }
+  if(rows.length === 0){
+    wrap.innerHTML = '<div class="chart-empty">Aucune donnée pour cette sélection.</div>';
+    return;
+  }
+  const byTech = computeTechStats(rows);
+  const techs = Object.keys(byTech).sort((a,b)=>{
+    const totalA = byTech[a].Absence + byTech[a].Retard + byTech[a]['Demi-journée'];
+    const totalB = byTech[b].Absence + byTech[b].Retard + byTech[b]['Demi-journée'];
+    return totalB - totalA;
+  });
+  wrap.innerHTML = `<div class="chart-canvas-box"><canvas id="canvasTech"></canvas></div>`;
+  const ctx = document.getElementById('canvasTech').getContext('2d');
+  if(state.chartTech) state.chartTech.destroy();
+  state.chartTech = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: techs,
+      datasets:[
+        { label:'Absence', data: techs.map(t=>byTech[t].Absence), backgroundColor:'#C0392B' },
+        { label:'Retard', data: techs.map(t=>byTech[t].Retard), backgroundColor:'#C9971F' },
+        { label:'Demi-journée', data: techs.map(t=>byTech[t]['Demi-journée']), backgroundColor:'#1B2A4A' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } },
+      plugins:{ legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{ size:11.5 } } } }
+    }
+  });
+}
+
+function renderRetardsChart(){
+  const wrap = document.getElementById('chartWrapRetards');
+  const rows = state.data.retards || [];
+  if(!state.accessToken){ return; }
+  if(rows.length === 0){
+    wrap.innerHTML = '<div class="chart-empty">Aucune donnée dans « Suivi_Retards_Absences_Techniciens ».</div>';
+    return;
+  }
+  const { justifie, nonJustifie } = computeRetardsStats(rows);
+  wrap.innerHTML = `<div class="chart-canvas-box"><canvas id="canvasRetards"></canvas></div><ul class="legend-list" id="legendRetards"></ul>`;
+  if(state.chartRetards) state.chartRetards.destroy();
+  state.chartRetards = renderGaugeHalf('canvasRetards', justifie, justifie+nonJustifie, '#C0392B');
+  document.getElementById('legendRetards').innerHTML = `
+    <li><span class="swatch" style="background:#1E8E5A"></span>Justifié <b>${justifie}</b></li>
+    <li><span class="swatch" style="background:#C0392B"></span>Non justifié <b>${nonJustifie}</b></li>`;
+}
+
+/* =========================================================================
+   MODAL / FORM
+   ========================================================================= */
+function openAddModal(key){
+  if(!state.accessToken){ alert("Connectez-vous d'abord avec Google, puis vérifiez la configuration des feuilles."); return; }
+  const t = TABLES[key];
+  const box = document.getElementById('modalBox');
+  let fieldsHtml = '';
+  t.columns.forEach(col=>{
+    const id = `f_${col.key}`;
+    if(col.type === 'select'){
+      fieldsHtml += `<div class="field"><label>${col.label}${col.required?' *':''}</label>
+        <select id="${id}">${col.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>`;
+    } else if(col.type === 'textarea'){
+      fieldsHtml += `<div class="field"><label>${col.label}</label><textarea id="${id}"></textarea></div>`;
+    } else if(col.type === 'date'){
+      fieldsHtml += `<div class="field"><label>${col.label}${col.required?' *':''}</label><input type="date" id="${id}"></div>`;
+    } else {
+      fieldsHtml += `<div class="field"><label>${col.label}${col.required?' *':''}</label><input type="text" id="${id}" value="${col.default||''}"></div>`;
+    }
+  });
+  box.innerHTML = `
+    <h3>${t.label}</h3>
+    <p class="modal-sub">Nouvelle entrée — envoyée directement dans votre Google Sheet.</p>
+    <form id="entryForm">${fieldsHtml}
+      <div id="formMsg"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelModalBtn">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="submitModalBtn">Ajouter au tableau</button>
+      </div>
+    </form>`;
+  document.getElementById('cancelModalBtn').onclick = closeModal;
+  document.getElementById('entryForm').onsubmit = (e)=>{ e.preventDefault(); submitEntry(key); };
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+async function submitEntry(key){
+  const t = TABLES[key];
+  const sheetCfg = CONFIG.SHEETS[key];
+  const msgEl = document.getElementById('formMsg');
+  const submitBtn = document.getElementById('submitModalBtn');
+
+  const missing = t.columns.filter(c=>c.required && !document.getElementById(`f_${c.key}`).value.trim());
+  if(missing.length){
+    msgEl.innerHTML = `<div class="form-msg err">Champ requis manquant : ${missing[0].label}</div>`;
+    return;
+  }
+  if(!sheetCfg || !sheetCfg.spreadsheetId){
+    msgEl.innerHTML = `<div class="form-msg err">Aucune feuille configurée pour « ${t.label} ». Allez dans ⚙ Configuration.</div>`;
+    return;
+  }
+
+  const rowValues = t.columns.map(c=>{
+    let v = document.getElementById(`f_${c.key}`).value;
+    if(c.type === 'date' && v){
+      const [y,m,d] = v.split('-');
+      v = `${parseInt(d,10)}/${parseInt(m,10)}/${y}`;
+    }
+    return v;
+  });
+
+  submitBtn.disabled = true; submitBtn.textContent = 'Envoi...';
+  try{
+    await appendRow(sheetCfg.spreadsheetId, sheetCfg.tab, rowValues);
+    msgEl.innerHTML = `<div class="form-msg ok">Entrée ajoutée ✓</div>`;
+    if(!state.data[key]) state.data[key] = [];
+    state.data[key].push(rowValues);
+    renderCards(); renderCharts();
+    setTimeout(closeModal, 700);
+  }catch(err){
+    msgEl.innerHTML = `<div class="form-msg err">Échec de l'envoi : ${err.message}</div>`;
+    submitBtn.disabled = false; submitBtn.textContent = 'Ajouter au tableau';
+  }
+}
+
+/* =========================================================================
+   GOOGLE SHEETS API (fetch + OAuth token)
+   ========================================================================= */
+async function fetchSheetValues(spreadsheetId, tab){
+  // Pas de limite de lignes : va jusqu'à la fin de la feuille (colonnes A à Z).
+  const range = encodeURIComponent(`${tab}!A2:Z`);
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, {
+    headers:{ Authorization:`Bearer ${state.accessToken}` }
+  });
+  if(!res.ok){ const t = await res.text(); throw new Error(`${res.status} ${t.slice(0,120)}`); }
+  const json = await res.json();
+  return json.values || [];
+}
+async function appendRow(spreadsheetId, tab, rowValues){
+  const range = encodeURIComponent(`${tab}!A:Z`);
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`, {
+    method:'POST',
+    headers:{ Authorization:`Bearer ${state.accessToken}`, 'Content-Type':'application/json' },
+    body: JSON.stringify({ values:[rowValues] })
+  });
+  if(!res.ok){ const t = await res.text(); throw new Error(`${res.status} ${t.slice(0,120)}`); }
+  return res.json();
+}
+
+async function loadAllData(){
+  document.getElementById('statusText').textContent = 'Chargement des données...';
+  for(const key of Object.keys(TABLES)){
+    const cfg = CONFIG.SHEETS[key];
+    if(!cfg || !cfg.spreadsheetId){ state.data[key] = []; continue; }
+    try{
+      state.data[key] = await fetchSheetValues(cfg.spreadsheetId, cfg.tab);
+    }catch(err){
+      console.error(`Erreur chargement ${key}:`, err);
+      state.data[key] = [];
+    }
+  }
+  renderCards(); renderCharts();
+  document.getElementById('statusText').textContent = 'Connecté — données à jour';
+}
+
+/* =========================================================================
+   AUTH — persistance de session (localStorage) entre les rechargements
+   ========================================================================= */
+const TOKEN_STORAGE_KEY = 'suiviTech_gToken';
+const PREV_AUTH_KEY = 'suiviTech_wasSignedIn';
+
+function saveTokenToStorage(resp){
+  try{
+    const expiresAt = Date.now() + (Number(resp.expires_in || 3500) * 1000) - 60000; // marge de 60s
+    localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({ token: resp.access_token, expiresAt }));
+    localStorage.setItem(PREV_AUTH_KEY, '1');
+  }catch(e){ /* stockage indisponible, on ignore silencieusement */ }
+}
+function getStoredToken(){
+  try{
+    const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(obj && obj.token && obj.expiresAt && obj.expiresAt > Date.now()) return obj.token;
+  }catch(e){}
+  return null;
+}
+function clearStoredToken(){
+  try{ localStorage.removeItem(TOKEN_STORAGE_KEY); }catch(e){}
+}
+function wasPreviouslySignedIn(){
+  try{ return localStorage.getItem(PREV_AUTH_KEY) === '1'; }catch(e){ return false; }
+}
+function markSignedInUI(){
+  document.getElementById('signalDot').classList.add('on');
+  document.getElementById('signInBtn').textContent = 'Reconnecter';
+}
+function onAuthSuccess(resp){
+  state.accessToken = resp.access_token;
+  saveTokenToStorage(resp);
+  markSignedInUI();
+  loadAllData();
+}
+
+function initGis(){
+  if(!CONFIG.CLIENT_ID){ return; }
+  state.tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CONFIG.CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    callback: (resp)=>{
+      if(resp.error){
+        // Échec d'une tentative silencieuse : on n'affiche une alerte que si l'utilisateur a cliqué manuellement.
+        if(state._manualSignInAttempt){ alert('Connexion refusée : ' + resp.error); }
+        state._manualSignInAttempt = false;
+        return;
+      }
+      state._manualSignInAttempt = false;
+      onAuthSuccess(resp);
+    }
+  });
+
+  // Session déjà valide en mémoire locale (rechargement de page) : on restaure sans repasser par Google.
+  const stored = getStoredToken();
+  if(stored){
+    state.accessToken = stored;
+    markSignedInUI();
+    loadAllData();
+  } else if(wasPreviouslySignedIn()){
+    // Le jeton a expiré mais l'utilisateur était connecté : tentative de reconnexion silencieuse.
+    try{ state.tokenClient.requestAccessToken({ prompt: '' }); }catch(e){}
+  }
+}
+document.getElementById('signInBtn').onclick = ()=>{
+  if(!CONFIG.CLIENT_ID){
+    alert("Renseignez d'abord votre Client ID dans ⚙ Configuration.");
+    switchView('config');
+    return;
+  }
+  if(!state.tokenClient) initGis();
+  state._manualSignInAttempt = true;
+  state.tokenClient.requestAccessToken();
+};
+
+/* =========================================================================
+   NOTES & RAPPELS — stockage local + intégration Agenda Google / Gmail
+   ========================================================================= */
+const NOTES_STORAGE_KEY = 'suiviTech_notes';
+
+function loadNotes(){
+  try{
+    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+    state.notes = raw ? JSON.parse(raw) : [];
+  }catch(e){ state.notes = []; }
+}
+function saveNotes(){
+  try{ localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(state.notes)); }catch(e){}
+}
+function updateNotesBadge(){
+  const pending = state.notes.filter(n=>!n.done).length;
+  document.getElementById('notesBadge').textContent = pending;
+}
+function fmtNoteDateTime(n){
+  if(!n.date) return 'Sans date';
+  const d = new Date(`${n.date}T${n.time||'09:00'}:00`);
+  return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'}) + (n.time ? ` à ${n.time}` : '');
+}
+function buildCalendarLink(n){
+  const start = new Date(`${n.date || new Date().toISOString().slice(0,10)}T${n.time || '09:00'}:00`);
+  const end = new Date(start.getTime() + 30*60000);
+  const fmt = d => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: n.title,
+    details: n.desc || '',
+    dates: `${fmt(start)}/${fmt(end)}`
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+function buildGmailLink(n){
+  const params = new URLSearchParams({
+    view:'cm', fs:'1',
+    su: `Rappel : ${n.title}`,
+    body: `${n.desc || ''}\n\nÉchéance : ${fmtNoteDateTime(n)}`
+  });
+  return `https://mail.google.com/mail/?${params.toString()}`;
+}
+function renderNotesList(){
+  const list = document.getElementById('notesList');
+  updateNotesBadge();
+  if(state.notes.length === 0){
+    list.innerHTML = '<div class="notes-empty">Aucun rappel pour le moment.</div>';
+    return;
+  }
+  const sorted = [...state.notes].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'));
+  list.innerHTML = sorted.map(n=>`
+    <div class="note-item${n.done?' done':''}" data-id="${n.id}">
+      <div class="note-title">${escapeHtml(n.title)}</div>
+      <div class="note-meta">🗓 ${fmtNoteDateTime(n)}</div>
+      ${n.desc ? `<div class="note-desc">${escapeHtml(n.desc)}</div>` : ''}
+      <div class="note-actions">
+        <button data-act="calendar">🗓️ Agenda Google</button>
+        <button data-act="gmail">✉️ Alerte email</button>
+        <button data-act="done">${n.done ? '↺ Rouvrir' : '✓ Fait'}</button>
+        <button data-act="delete">🗑️ Supprimer</button>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.note-item').forEach(el=>{
+    const id = el.dataset.id;
+    const note = state.notes.find(n=>n.id === id);
+    el.querySelector('[data-act="calendar"]').onclick = ()=> window.open(buildCalendarLink(note), '_blank');
+    el.querySelector('[data-act="gmail"]').onclick = ()=> window.open(buildGmailLink(note), '_blank');
+    el.querySelector('[data-act="done"]').onclick = ()=>{ note.done = !note.done; saveNotes(); renderNotesList(); };
+    el.querySelector('[data-act="delete"]').onclick = ()=>{
+      state.notes = state.notes.filter(n=>n.id !== id);
+      saveNotes(); renderNotesList();
+    };
+  });
+}
+document.getElementById('saveNoteBtn').onclick = ()=>{
+  const title = document.getElementById('noteTitle').value.trim();
+  if(!title){ alert('Le titre du rappel est requis.'); return; }
+  const note = {
+    id: 'n' + Date.now(),
+    title,
+    date: document.getElementById('noteDate').value,
+    time: document.getElementById('noteTime').value || '09:00',
+    desc: document.getElementById('noteDesc').value.trim(),
+    done: false
+  };
+  state.notes.push(note);
+  saveNotes();
+  document.getElementById('noteTitle').value = '';
+  document.getElementById('noteDesc').value = '';
+  document.getElementById('noteDate').value = '';
+  renderNotesList();
+};
+document.getElementById('fabNotesBtn').onclick = ()=>{
+  document.getElementById('notesOverlay').classList.add('open');
+  renderNotesList();
+};
+document.getElementById('closeNotesBtn').onclick = ()=> document.getElementById('notesOverlay').classList.remove('open');
+document.getElementById('notesOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'notesOverlay') document.getElementById('notesOverlay').classList.remove('open');
+});
+
+/* =========================================================================
+   NAV / VIEWS
+   ========================================================================= */
+function switchView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(`view-${name}`).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view === name));
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.onclick = ()=>switchView(btn.dataset.view);
+});
+document.getElementById('overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'overlay') closeModal();
+});
+
+/* =========================================================================
+   REPORT
+   ========================================================================= */
+document.getElementById('periodType').addEventListener('change', (e)=>{
+  const label = document.getElementById('periodInputLabel');
+  const input = document.getElementById('periodInput');
+  if(e.target.value === 'week'){
+    label.textContent = 'Choisir la semaine';
+    input.type = 'week';
+  } else {
+    label.textContent = 'Choisir le mois';
+    input.type = 'month';
+  }
+});
+
+function getRangeFromTypeVal(type, val){
+  if(!val) return null;
+  if(type === 'week'){
+    const [yearStr, weekStr] = val.split('-W');
+    const year = parseInt(yearStr,10), week = parseInt(weekStr,10);
+    const simple = new Date(year, 0, 1 + (week-1)*7);
+    const dow = simple.getDay();
+    const isoWeekStart = new Date(simple);
+    const diff = (dow <= 4 ? dow - 1 : dow - 8);
+    isoWeekStart.setDate(simple.getDate() - diff);
+    const start = new Date(isoWeekStart.getFullYear(), isoWeekStart.getMonth(), isoWeekStart.getDate());
+    const end = new Date(start); end.setDate(start.getDate()+6); end.setHours(23,59,59,999);
+    return {start, end};
+  } else {
+    const [year, month] = val.split('-').map(n=>parseInt(n,10));
+    const start = new Date(year, month-1, 1);
+    const end = new Date(year, month, 0, 23,59,59,999);
+    return {start, end};
+  }
+}
+function getPeriodRange(){
+  const type = document.getElementById('periodType').value;
+  const val = document.getElementById('periodInput').value;
+  return getRangeFromTypeVal(type, val);
+}
+
+// Registres retenus pour le rapport détaillé : uniquement les données pertinentes
+// pour un suivi terrain (absences/retards et réclamations). ID LMS, IMEI et
+// contrôle technicien sont des données brutes, pas des indicateurs de période.
+const REPORT_TABLES = ['reclamations', 'retards'];
+
+// Jauge en demi-cercle avec le pourcentage inscrit au centre (style "one-pager")
+function renderGaugeHalf(canvasId, value, total, color){
+  const canvasEl = document.getElementById(canvasId);
+  const pct = total > 0 ? Math.round((value/total)*100) : 0;
+  const reste = Math.max(total - value, 0);
+  const data = total > 0 ? [value, reste] : [1];
+  const colors = total > 0 ? [color, '#E5EBF1'] : ['#E5EBF1'];
+  return new Chart(canvasEl.getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:['Valeur','Reste'], datasets:[{ data, backgroundColor:colors, borderWidth:0 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      circumference:180, rotation:-90, cutout:'72%',
+      plugins:{ legend:{ display:false }, tooltip:{ enabled:false } }
+    },
+    plugins:[{
+      id:canvasId+'CenterText',
+      afterDraw(chart){
+        const meta = chart.getDatasetMeta(0);
+        const arc = meta.data[0];
+        if(!arc) return;
+        // On utilise le centre géométrique réel de l'arc (arc.x / arc.y), identique
+        // pour toutes les portions du demi-cercle, plutôt que getCenterPoint() qui
+        // renvoie un point décalé vers la portion colorée selon la valeur du %.
+        // Cela garantit que le texte reste toujours au centre exact de la circonférence.
+        const x = arc.x, y = arc.y;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#0F172A';
+        ctx.font = "700 19px 'IBM Plex Mono', monospace";
+        ctx.fillText(pct + '%', x, y);
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+document.getElementById('generateReportBtn').onclick = ()=>{
+  const range = getPeriodRange();
+  const emptyWrap = document.getElementById('reportEmptyWrap');
+  const onePager = document.getElementById('reportOnePager');
+  const listWrap = document.getElementById('reportListWrap');
+  const listEl = document.getElementById('reportList');
+  const periodLabelEl = document.getElementById('reportPeriodLabel');
+  const downloadBtn = document.getElementById('downloadReportBtn');
+
+  if(!range){
+    emptyWrap.style.display = '';
+    emptyWrap.querySelector('.report-empty').textContent = 'Choisissez une date valide.';
+    onePager.style.display = 'none';
+    listWrap.style.display = 'none';
+    downloadBtn.style.display = 'none';
+    return;
+  }
+
+  const items = [];
+  REPORT_TABLES.forEach(key=>{
+    const t = TABLES[key];
+    const rows = state.data[key] || [];
+    rows.forEach(r=>{
+      const dt = parseFrDate(r[t.dateColIndex]);
+      if(!dt || dt < range.start || dt > range.end) return;
+      items.push({ table:key, label:t.label, date:dt, row:r });
+    });
+  });
+  items.sort((a,b)=> b.date - a.date);
+
+  periodLabelEl.textContent = `Période du ${fmtDate(range.start)} au ${fmtDate(range.end)}`;
+  document.getElementById('reportGeneratedAt').textContent = fmtDate(new Date());
+  document.getElementById('reportTotalBadge').textContent = `${items.length} ÉVÈNEMENT${items.length>1?'S':''}`;
+
+  state.lastReportRange = range;
+  state.lastReportItems = items;
+  renderReportCharts(range);
+
+  emptyWrap.style.display = 'none';
+  onePager.style.display = '';
+  listWrap.style.display = '';
+  downloadBtn.style.display = '';
+
+  if(items.length === 0){
+    listEl.innerHTML = `<div class="report-empty">Aucune entrée entre le ${fmtDate(range.start)} et le ${fmtDate(range.end)}.</div>`;
+    return;
+  }
+  listEl.innerHTML = items.map(it=>renderReportItem(it)).join('');
+};
+
+function renderReportCharts(range){
+  // Conformité documents : indicateur global (pas de date dans cette feuille)
+  const docsRows = state.data.documents || [];
+  const { conforme, nonConforme } = computeDocsStats(docsRows);
+  document.getElementById('legendReportDocs').innerHTML =
+    `<li><span class="swatch" style="background:#1E8E5A"></span>Conforme <b>${conforme}</b></li><li><span class="swatch" style="background:#C0392B"></span>Non conforme <b>${nonConforme}</b></li>`;
+  if(state.chartReportDocs) state.chartReportDocs.destroy();
+  state.chartReportDocs = renderGaugeHalf('canvasReportDocs', conforme, conforme+nonConforme, '#1E8E5A');
+
+  // Réclamations sur la période
+  const reclamRows = filterRowsByRange(state.data.reclamations || [], TABLES.reclamations.dateColIndex, range);
+  const { corrige, encours } = computeReclamStats(reclamRows);
+  document.getElementById('legendReportReclam').innerHTML =
+    `<li><span class="swatch" style="background:#C9971F"></span>Corrigé <b>${corrige}</b></li><li><span class="swatch" style="background:#1B2A4A"></span>En cours <b>${encours}</b></li>`;
+  if(state.chartReportReclam) state.chartReportReclam.destroy();
+  state.chartReportReclam = renderGaugeHalf('canvasReportReclam', corrige, corrige+encours, '#C9971F');
+
+  // Retards/absences sur la période
+  const retardsRows = filterRowsByRange(state.data.retards || [], TABLES.retards.dateColIndex, range);
+  const { justifie, nonJustifie } = computeRetardsStats(retardsRows);
+  document.getElementById('legendReportRetards').innerHTML =
+    `<li><span class="swatch" style="background:#1E8E5A"></span>Justifié <b>${justifie}</b></li><li><span class="swatch" style="background:#C0392B"></span>Non justifié <b>${nonJustifie}</b></li>`;
+  if(state.chartReportRetards) state.chartReportRetards.destroy();
+  state.chartReportRetards = renderGaugeHalf('canvasReportRetards', justifie, justifie+nonJustifie, '#C0392B');
+
+  // Vue d'ensemble (colonne latérale)
+  document.getElementById('ropStatReclam').textContent = reclamRows.length;
+  document.getElementById('ropStatRetards').textContent = retardsRows.length;
+  document.getElementById('ropStatNonJust').textContent = nonJustifie;
+
+  // Répartition par technicien sur la période
+  const byTech = computeTechStats(retardsRows);
+  const techs = Object.keys(byTech).sort((a,b)=>{
+    const totalA = byTech[a].Absence + byTech[a].Retard + byTech[a]['Demi-journée'];
+    const totalB = byTech[b].Absence + byTech[b].Retard + byTech[b]['Demi-journée'];
+    return totalB - totalA;
+  });
+  document.getElementById('ropStatTech').textContent = techs.length;
+
+  if(state.chartReportTech) state.chartReportTech.destroy();
+  const techCanvas = document.getElementById('canvasReportTech');
+  if(techs.length === 0){
+    document.getElementById('chartWrapReportTech').innerHTML = '<div class="chart-empty">Aucune donnée pour cette période.</div>';
+  } else {
+    state.chartReportTech = new Chart(techCanvas.getContext('2d'), {
+      type:'bar',
+      data:{ labels: techs, datasets:[
+        { label:'Absence', data: techs.map(t=>byTech[t].Absence), backgroundColor:'#C0392B' },
+        { label:'Retard', data: techs.map(t=>byTech[t].Retard), backgroundColor:'#C9971F' },
+        { label:'Demi-journée', data: techs.map(t=>byTech[t]['Demi-journée']), backgroundColor:'#1B2A4A' }
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } },
+        plugins:{ legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{ size:11.5 } } } }
+      }
+    });
+  }
+
+  renderReportWeeklyTable(range);
+  renderSatcliAll();
+}
+
+/* ---- Comparatif hebdomadaire par technicien — dans le rapport ----
+   Réutilise les données de performance (SAV/Raccordement) importées dans
+   l'onglet Performance, filtrées sur la période choisie pour le rapport. */
+function renderReportWeeklyTable(range){
+  const wrap = document.getElementById('reportWeeklyTableWrap');
+  const noteEl = document.getElementById('reportWeeklyNote');
+  const lignesPeriode = (PERF_LIGNES||[]).filter(l=>{
+    if(!PERF_COL_DATE) return false;
+    const val = l[PERF_COL_DATE];
+    if(!val) return false;
+    const d = val instanceof Date ? val : new Date(val);
+    if(isNaN(d)) return false;
+    return d >= range.start && d <= range.end;
+  });
+  const { html, note } = perfConstruireComparatifHebdoHtml(lignesPeriode, {
+    msgPasDeDate: "Importez un fichier de performance (SAV/Raccordement) avec une colonne date pour afficher ce comparatif.",
+    msgVide: "Aucune donnée de performance (SAV/Raccordement) sur cette période."
+  });
+  wrap.innerHTML = html;
+  if(noteEl) noteEl.textContent = note;
+}
+
+/* =========================================================================
+   PERFORMANCE TECHNICIENS — intégré nativement (plus d'iframe vers PERF.html).
+   Les données importées restent enregistrées dans ce navigateur (localStorage) :
+   un rechargement de page ne les efface pas, seul un nouvel import les remplace.
+   ========================================================================= */
+const PERF_DATA_KEY = 'suiviTech_perfData_v1';
+let PERF_LIGNES = [];
+let PERF_COL_TYPO = null, PERF_COL_STATUT = null, PERF_COL_TECH = null, PERF_COL_DATE = null;
+
+// Normalisation robuste : accents, casse, espaces — pour ne perdre aucune ligne
+// à cause d'un en-tête ou d'une valeur écrite différemment.
+function perfNormaliser(nom){
+  return String(nom || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/["']/g,'')
+    .replace(/\s+/g,' ')
+    .trim()
+    .toLowerCase();
+}
+function perfTrouverColonne(ligne, cibles){
+  const cles = Object.keys(ligne);
+  for (const cible of cibles){
+    const cn = perfNormaliser(cible);
+    const trouve = cles.find(k => perfNormaliser(k) === cn);
+    if (trouve) return trouve;
+  }
+  for (const cible of cibles){
+    const cn = perfNormaliser(cible);
+    const trouve = cles.find(k => perfNormaliser(k).includes(cn));
+    if (trouve) return trouve;
+  }
+  return null;
+}
+function perfDetecterTypologie(valeur){
+  const v = perfNormaliser(valeur);
+  if (v.includes('sav')) return 'SAV';
+  if (v.includes('rac')) return 'RACCO';
+  return null;
+}
+// Détection élargie du statut (accents/variantes) pour ne plus perdre de lignes.
+function perfDetecterStatut(valeur){
+  const v = perfNormaliser(valeur).replace(/\s+/g, '_');
+  if (v.includes('nok') || v.includes('_ko') || v === 'ko' || v.includes('non_realise') || v.includes('echec') || v.includes('annul')) return 'NOK';
+  if (v.includes('ok') || v.includes('realise') || v.includes('cloture') || v.includes('termine')) return 'OK';
+  return null;
+}
+function perfAfficherErreur(msg){
+  const box = document.getElementById('perfStatutImport');
+  box.className = 'err';
+  box.textContent = '⚠ ' + msg;
+}
+function perfAfficherOk(msg){
+  const box = document.getElementById('perfStatutImport');
+  box.className = 'ok';
+  box.textContent = '✓ ' + msg;
+}
+function perfSauvegarder(fileName){
+  try{
+    localStorage.setItem(PERF_DATA_KEY, JSON.stringify({ lignes: PERF_LIGNES, fileName, importedAt: new Date().toISOString() }));
+  }catch(e){}
+}
+function perfCharger(){
+  try{
+    const raw = localStorage.getItem(PERF_DATA_KEY);
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    if(!saved.lignes || !saved.lignes.length) return;
+    document.getElementById('perfNomFichier').textContent = `${saved.fileName || 'fichier'} — importé le ${fmtDate(new Date(saved.importedAt))} (enregistré localement)`;
+    perfTraiterLignes(saved.lignes);
+  }catch(e){}
+}
+
+document.getElementById('perfFichierInput').addEventListener('change', function(e){
+  const fichier = e.target.files[0];
+  if (!fichier) return;
+  document.getElementById('perfNomFichier').textContent = fichier.name;
+
+  const lecteur = new FileReader();
+  lecteur.onload = function(evt){
+    try{
+      const donnees = new Uint8Array(evt.target.result);
+      const classeur = XLSX.read(donnees, {type:'array', cellDates:true});
+      const feuille = classeur.Sheets[classeur.SheetNames[0]];
+      const lignes = XLSX.utils.sheet_to_json(feuille, {defval:''});
+
+      if (!lignes.length){
+        perfAfficherErreur('Le fichier semble vide.');
+        return;
+      }
+      perfTraiterLignes(lignes);
+      if(PERF_LIGNES.length) perfSauvegarder(fichier.name);
+    }catch(err){
+      perfAfficherErreur('Impossible de lire le fichier : ' + err.message);
+    }
+  };
+  lecteur.readAsArrayBuffer(fichier);
+});
+
+function perfTraiterLignes(lignes){
+  const premiere = lignes[0];
+  PERF_COL_TYPO   = perfTrouverColonne(premiere, ["Typologie RDV","Typologie","Type d'intervention","Type intervention","Nature RDV"]);
+  PERF_COL_STATUT = perfTrouverColonne(premiere, ["Statut du RDV","Statut","Résultat RDV","Résultat","Etat RDV"]);
+  PERF_COL_TECH   = perfTrouverColonne(premiere, ["Technicien","Nom technicien","Nom du technicien"]);
+  PERF_COL_DATE   = perfTrouverColonne(premiere, ["Début du RDV","Début INTER","Date","Date RDV","Date intervention"]);
+
+  const manquantes = [];
+  if (!PERF_COL_TYPO) manquantes.push('Typologie RDV');
+  if (!PERF_COL_STATUT) manquantes.push('Statut du RDV');
+  if (!PERF_COL_TECH) manquantes.push('Technicien');
+  if (manquantes.length){
+    perfAfficherErreur('Colonnes introuvables dans le fichier : ' + manquantes.join(', ') + '. Vérifiez les en-têtes de votre fichier Excel.');
+    return;
+  }
+
+  PERF_LIGNES = lignes;
+  document.getElementById('perfExportPdfBtn').disabled = false;
+
+  if (PERF_COL_DATE){
+    perfRemplirSelecteurSemaines(lignes);
+    perfRemplirSelecteurMois(lignes);
+  } else {
+    document.getElementById('perfSemaineSelectBox').style.display = 'none';
+    document.getElementById('perfMoisSelectBox').style.display = 'none';
+    perfGenererTableaux(lignes);
+    perfGenererTauxCompares(lignes);
+    perfGenererComparatifHebdo(lignes);
+  }
+  perfAfficherOk(lignes.length + ' lignes importées avec succès.');
+}
+
+function perfLundiDe(date){
+  const d = new Date(date);
+  const jour = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - jour);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function perfFormatDateFr(d){ return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'}); }
+function perfFormatDateCourte(d){ return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'}); }
+
+function perfRemplirSelecteurSemaines(lignes){
+  const semaines = new Map();
+  lignes.forEach(l => {
+    const val = l[PERF_COL_DATE];
+    if (!val) return;
+    const d = val instanceof Date ? val : new Date(val);
+    if (isNaN(d)) return;
+    const lundi = perfLundiDe(d);
+    const cle = lundi.getTime();
+    if (!semaines.has(cle)){
+      const dimanche = new Date(lundi); dimanche.setDate(dimanche.getDate() + 6);
+      semaines.set(cle, `Semaine du ${perfFormatDateFr(lundi)} au ${perfFormatDateFr(dimanche)}`);
+    }
+  });
+
+  const select = document.getElementById('perfSemaineSelect');
+  select.innerHTML = '';
+  const clesTri = Array.from(semaines.keys()).sort((a,b) => b - a);
+
+  const optionToutes = document.createElement('option');
+  optionToutes.value = 'TOUT';
+  optionToutes.textContent = 'Toutes les semaines (' + lignes.length + ' lignes)';
+  select.appendChild(optionToutes);
+
+  clesTri.forEach(cle => {
+    const opt = document.createElement('option');
+    opt.value = cle;
+    opt.textContent = semaines.get(cle);
+    select.appendChild(opt);
+  });
+
+  document.getElementById('perfSemaineSelectBox').style.display = clesTri.length ? 'flex' : 'none';
+
+  select.onchange = function(){
+    if (this.value === 'TOUT'){
+      perfGenererTableaux(PERF_LIGNES);
+      perfGenererTauxCompares(PERF_LIGNES);
+    } else {
+      const cle = Number(this.value);
+      const filtrees = PERF_LIGNES.filter(l => {
+        const val = l[PERF_COL_DATE];
+        if (!val) return false;
+        const d = val instanceof Date ? val : new Date(val);
+        if (isNaN(d)) return false;
+        return perfLundiDe(d).getTime() === cle;
+      });
+      perfGenererTableaux(filtrees);
+      perfGenererTauxCompares(filtrees);
+    }
+  };
+
+  if (clesTri.length){
+    select.value = clesTri[0];
+    select.onchange();
+  } else {
+    perfGenererTableaux(lignes);
+    perfGenererTauxCompares(lignes);
+  }
+}
+
+function perfMoisKey(d){ return d.getFullYear()*100 + (d.getMonth()+1); }
+function perfMoisLabel(d){
+  const s = d.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function perfRemplirSelecteurMois(lignes){
+  const mois = new Map();
+  lignes.forEach(l => {
+    const val = l[PERF_COL_DATE];
+    if (!val) return;
+    const d = val instanceof Date ? val : new Date(val);
+    if (isNaN(d)) return;
+    const cle = perfMoisKey(d);
+    if (!mois.has(cle)) mois.set(cle, new Date(d.getFullYear(), d.getMonth(), 1));
+  });
+
+  const select = document.getElementById('perfMoisSelect');
+  select.innerHTML = '';
+  const clesTri = Array.from(mois.keys()).sort((a,b) => b - a);
+
+  if (!clesTri.length){
+    document.getElementById('perfMoisSelectBox').style.display = 'none';
+    perfGenererComparatifHebdo(lignes);
+    return;
+  }
+
+  clesTri.forEach(cle => {
+    const opt = document.createElement('option');
+    opt.value = cle;
+    opt.textContent = perfMoisLabel(mois.get(cle));
+    select.appendChild(opt);
+  });
+  const optToutes = document.createElement('option');
+  optToutes.value = 'TOUT';
+  optToutes.textContent = 'Tous les mois';
+  select.appendChild(optToutes);
+
+  document.getElementById('perfMoisSelectBox').style.display = 'flex';
+  select.value = clesTri[0];
+
+  select.onchange = function(){
+    if (this.value === 'TOUT'){ perfGenererComparatifHebdo(PERF_LIGNES); return; }
+    const cle = Number(this.value);
+    const filtrees = PERF_LIGNES.filter(l => {
+      const val = l[PERF_COL_DATE];
+      if (!val) return false;
+      const d = val instanceof Date ? val : new Date(val);
+      if (isNaN(d)) return false;
+      return perfMoisKey(d) === cle;
+    });
+    perfGenererComparatifHebdo(filtrees);
+  };
+  select.onchange();
+}
+
+function perfCalculerBuckets(lignes){
+  const buckets = {SAV:{}, RACCO:{}};
+  let ignorees = 0, autresTypo = 0, autresStatut = 0;
+  lignes.forEach(l => {
+    const typo = perfDetecterTypologie(l[PERF_COL_TYPO]);
+    const statut = perfDetecterStatut(l[PERF_COL_STATUT]);
+    const tech = String(l[PERF_COL_TECH] || '').trim();
+    if (!typo){ autresTypo++; return; }
+    if (!statut){ autresStatut++; return; }
+    if (!tech){ ignorees++; return; }
+    if (!buckets[typo][tech]) buckets[typo][tech] = {reussi:0, echec:0};
+    if (statut === 'OK') buckets[typo][tech].reussi++; else buckets[typo][tech].echec++;
+  });
+  return {buckets, ignorees, autresTypo, autresStatut};
+}
+
+function perfGenererTableaux(lignes){
+  const {buckets, ignorees, autresTypo, autresStatut} = perfCalculerBuckets(lignes);
+  document.getElementById('perfTableSAV').innerHTML = perfConstruireTableauHTML(buckets.SAV);
+  document.getElementById('perfTableRacco').innerHTML = perfConstruireTableauHTML(buckets.RACCO);
+
+  const totalSAV = Object.values(buckets.SAV).reduce((s,t)=>s+t.reussi+t.echec, 0);
+  const totalRacco = Object.values(buckets.RACCO).reduce((s,t)=>s+t.reussi+t.echec, 0);
+  document.getElementById('perfSousTitreSAV').textContent = totalSAV + ' intervention(s)';
+  document.getElementById('perfSousTitreRacco').textContent = totalRacco + ' intervention(s)';
+
+  const infos = document.getElementById('perfInfosBox');
+  const notes = [];
+  if (autresTypo) notes.push(autresTypo + " ligne(s) avec une typologie non reconnue (ni SAV ni Raccordement)");
+  if (autresStatut) notes.push(autresStatut + " ligne(s) avec un statut non reconnu (ni OK ni NOK — RDV non clôturés, annulés, reportés...)");
+  if (ignorees) notes.push(ignorees + " ligne(s) sans nom de technicien");
+  if (notes.length){
+    infos.classList.add('show');
+    infos.innerHTML = 'ℹ ' + notes.join(' · ');
+  } else {
+    infos.classList.remove('show');
+  }
+}
+
+function perfConstruireTableauHTML(bucket){
+  const techniciens = Object.keys(bucket).sort();
+  if (!techniciens.length) return '<div class="chart-empty">Aucune intervention trouvée pour cette catégorie.</div>';
+
+  let totalReussi = 0, totalEchec = 0;
+  let html = `<table class="satcli-table"><tr><th>Technicien</th><th class="num">Total</th><th class="num">Réussies</th><th class="num">Échouées</th><th class="num">% Succès</th></tr>`;
+  techniciens.forEach(tech => {
+    const d = bucket[tech];
+    const total = d.reussi + d.echec;
+    const pct = total ? Math.round(1000*d.reussi/total)/10 : 0;
+    totalReussi += d.reussi; totalEchec += d.echec;
+    html += `<tr><td>${escapeHtml(tech)}</td><td class="num mono">${total}</td><td class="num mono">${d.reussi}</td><td class="num mono">${d.echec}</td><td class="num mono ${satcliClassePct(pct)}">${pct}%</td></tr>`;
+  });
+  const totalGlobal = totalReussi + totalEchec;
+  const pctGlobal = totalGlobal ? Math.round(1000*totalReussi/totalGlobal)/10 : 0;
+  html += `<tr class="total"><td>Total équipe</td><td class="num mono">${totalGlobal}</td><td class="num mono">${totalReussi}</td><td class="num mono">${totalEchec}</td><td class="num mono ${satcliClassePct(pctGlobal)}">${pctGlobal}%</td></tr>`;
+  html += '</table>';
+  return html;
+}
+
+// Construit le HTML du tableau "Comparatif hebdomadaire par technicien" à partir
+// d'un jeu de lignes de performance donné. Réutilisé à la fois par l'onglet
+// Performance et par le Rapport (one-pager), pour rester cohérents partout.
+function perfConstruireComparatifHebdoHtml(lignes, options){
+  const opts = options || {};
+  const msgPasDeDate = opts.msgPasDeDate || 'Ce fichier ne contient pas de colonne date exploitable : le comparatif semaine par semaine n\'est pas disponible.';
+  const msgVide = opts.msgVide || 'Aucune date exploitable trouvée dans le fichier.';
+
+  if (!PERF_COL_DATE){
+    return { html: `<div class="chart-empty">${msgPasDeDate}</div>`, note:'' };
+  }
+
+  const semaineMap = new Map();
+  (lignes||[]).forEach(l => {
+    const val = l[PERF_COL_DATE];
+    if (!val) return;
+    const d = val instanceof Date ? val : new Date(val);
+    if (isNaN(d)) return;
+    const typo = perfDetecterTypologie(l[PERF_COL_TYPO]);
+    const statut = perfDetecterStatut(l[PERF_COL_STATUT]);
+    const tech = String(l[PERF_COL_TECH] || '').trim();
+    if (!typo || !statut || !tech) return;
+    const lundi = perfLundiDe(d);
+    const cle = lundi.getTime();
+    if (!semaineMap.has(cle)) semaineMap.set(cle, { lundi, parTech:{} });
+    const entree = semaineMap.get(cle);
+    if (!entree.parTech[tech]) entree.parTech[tech] = {reussi:0, echec:0};
+    if (statut === 'OK') entree.parTech[tech].reussi++; else entree.parTech[tech].echec++;
+  });
+
+  const semainesTri = Array.from(semaineMap.entries()).sort((a,b) => a[0]-b[0]);
+  if (!semainesTri.length){
+    return { html: `<div class="chart-empty">${msgVide}</div>`, note:'' };
+  }
+
+  const tousTechs = new Set();
+  semainesTri.forEach(([,v]) => Object.keys(v.parTech).forEach(t => tousTechs.add(t)));
+  const techs = Array.from(tousTechs).sort();
+
+  let theadTop = '<tr><th rowspan="2">Technicien</th>';
+  semainesTri.forEach(([,v]) => {
+    const dimanche = new Date(v.lundi); dimanche.setDate(dimanche.getDate()+6);
+    theadTop += `<th class="week-group-th" colspan="2">${perfFormatDateCourte(v.lundi)} → ${perfFormatDateCourte(dimanche)}</th>`;
+  });
+  theadTop += '<th rowspan="2" class="week-cell">Tendance</th></tr>';
+
+  let theadSub = '<tr>';
+  semainesTri.forEach(() => { theadSub += '<th class="num week-cell">Total</th><th class="num">Taux</th>'; });
+  theadSub += '</tr>';
+
+  let corpsHtml = '';
+  const totauxParSemaine = semainesTri.map(() => ({reussi:0, echec:0}));
+
+  techs.forEach(tech => {
+    let ligne = `<tr><td>${escapeHtml(tech)}</td>`;
+    semainesTri.forEach(([,v], idx) => {
+      const d = v.parTech[tech];
+      if (d){
+        const total = d.reussi + d.echec;
+        const pct = total ? Math.round(1000*d.reussi/total)/10 : 0;
+        ligne += `<td class="num mono week-cell">${total}</td><td class="num mono ${satcliClassePct(pct)}">${pct}%</td>`;
+        totauxParSemaine[idx].reussi += d.reussi;
+        totauxParSemaine[idx].echec += d.echec;
+      } else {
+        ligne += `<td class="num mono week-cell">—</td><td class="num">—</td>`;
+      }
+    });
+    ligne += `<td class="week-cell">${perfConstruireTendance(semainesTri, tech)}</td></tr>`;
+    corpsHtml += ligne;
+  });
+
+  let ligneTotal = '<tr class="total"><td>Total équipe</td>';
+  totauxParSemaine.forEach(t => {
+    const total = t.reussi + t.echec;
+    const pct = total ? Math.round(1000*t.reussi/total)/10 : 0;
+    ligneTotal += `<td class="num mono week-cell">${total}</td><td class="num mono ${satcliClassePct(pct)}">${pct}%</td>`;
+  });
+  ligneTotal += `<td class="week-cell">—</td></tr>`;
+  corpsHtml += ligneTotal;
+
+  const html = `<table class="satcli-table"><thead>${theadTop}${theadSub}</thead><tbody>${corpsHtml}</tbody></table>`;
+  const note = semainesTri.length + " semaine(s) comparée(s) · Tendance = évolution du taux de réussite entre les deux dernières semaines actives du technicien.";
+  return { html, note };
+}
+
+function perfGenererComparatifHebdo(lignes){
+  const cible = document.getElementById('perfTableComparatif');
+  const footNote = document.getElementById('perfFootNoteComparatif');
+  const { html, note } = perfConstruireComparatifHebdoHtml(lignes);
+  cible.innerHTML = html;
+  footNote.textContent = note;
+}
+
+function perfConstruireTendance(semainesTri, tech){
+  const points = [];
+  semainesTri.forEach(([,v]) => {
+    const d = v.parTech[tech];
+    if (d){
+      const total = d.reussi + d.echec;
+      points.push(total ? Math.round(1000*d.reussi/total)/10 : 0);
+    }
+  });
+  if (points.length < 2) return '<span class="trend-flat">—</span>';
+  const dernier = points[points.length-1];
+  const precedent = points[points.length-2];
+  const delta = Math.round((dernier-precedent)*10)/10;
+  if (delta > 0.4) return `<span class="trend-up">▲ +${delta} pts</span>`;
+  if (delta < -0.4) return `<span class="trend-down">▼ ${delta} pts</span>`;
+  return `<span class="trend-flat">= stable</span>`;
+}
+
+function perfGenererTauxCompares(lignes){
+  const cible = document.getElementById('perfTableTauxCompares');
+  const {buckets} = perfCalculerBuckets(lignes);
+  const tousTechs = new Set([...Object.keys(buckets.SAV), ...Object.keys(buckets.RACCO)]);
+  const techs = Array.from(tousTechs).sort();
+
+  if (!techs.length){
+    cible.innerHTML = '<div class="chart-empty">Aucune donnée disponible.</div>';
+    return;
+  }
+
+  let html = `<table class="satcli-table"><tr><th>Technicien</th><th class="num week-cell">Taux SAV</th><th class="num week-cell">Taux Raccordement</th><th class="num">Écart</th></tr>`;
+  let sommeSAV = {reussi:0, echec:0}, sommeRacco = {reussi:0, echec:0};
+
+  techs.forEach(tech => {
+    const sav = buckets.SAV[tech];
+    const racco = buckets.RACCO[tech];
+    const pctSav = sav && (sav.reussi+sav.echec) ? Math.round(1000*sav.reussi/(sav.reussi+sav.echec))/10 : null;
+    const pctRacco = racco && (racco.reussi+racco.echec) ? Math.round(1000*racco.reussi/(racco.reussi+racco.echec))/10 : null;
+    if (sav){ sommeSAV.reussi += sav.reussi; sommeSAV.echec += sav.echec; }
+    if (racco){ sommeRacco.reussi += racco.reussi; sommeRacco.echec += racco.echec; }
+    const ecart = (pctSav!==null && pctRacco!==null) ? Math.round((pctSav-pctRacco)*10)/10 : null;
+    html += `<tr>
+      <td>${escapeHtml(tech)}</td>
+      <td class="num mono week-cell ${pctSav!==null?satcliClassePct(pctSav):''}">${pctSav!==null?pctSav+'%':'—'}</td>
+      <td class="num mono ${pctRacco!==null?satcliClassePct(pctRacco):''}">${pctRacco!==null?pctRacco+'%':'—'}</td>
+      <td class="num mono">${ecart!==null ? (ecart>0?'+':'')+ecart+' pts' : '—'}</td>
+    </tr>`;
+  });
+
+  const totalSav = sommeSAV.reussi+sommeSAV.echec;
+  const totalRacco = sommeRacco.reussi+sommeRacco.echec;
+  const pctGlobalSav = totalSav ? Math.round(1000*sommeSAV.reussi/totalSav)/10 : 0;
+  const pctGlobalRacco = totalRacco ? Math.round(1000*sommeRacco.reussi/totalRacco)/10 : 0;
+  html += `<tr class="total">
+    <td>Total équipe</td>
+    <td class="num mono week-cell ${satcliClassePct(pctGlobalSav)}">${pctGlobalSav}%</td>
+    <td class="num mono ${satcliClassePct(pctGlobalRacco)}">${pctGlobalRacco}%</td>
+    <td class="num mono">${Math.round((pctGlobalSav-pctGlobalRacco)*10)/10} pts</td>
+  </tr>`;
+  html += '</table>';
+  cible.innerHTML = html;
+  document.getElementById('perfSousTitreTauxCompares').textContent = techs.length + " technicien(s) — comparaison directe des deux typologies";
+}
+
+document.getElementById('perfExportPdfBtn').addEventListener('click', async function(){
+  const btn = this;
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Génération du PDF...';
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 28;
+
+    const zone = document.getElementById('perfPageRoot');
+    const canvas = await html2canvas(zone, { scale:2, backgroundColor:'#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const imgW = pageWidth - margin*2;
+    const imgH = canvas.height * imgW / canvas.width;
+
+    let heightLeft = imgH;
+    let position = margin;
+    doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+    heightLeft -= (pageHeight - margin*2);
+    while (heightLeft > 0){
+      position = heightLeft - imgH + margin;
+      doc.addPage();
+      doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+      heightLeft -= (pageHeight - margin*2);
+    }
+    const dateStr = new Date().toLocaleDateString('fr-FR').replace(/\//g,'-');
+    doc.save(`rapport_performance_techniciens_${dateStr}.pdf`);
+  }catch(err){
+    alert('Erreur lors de la génération du PDF : ' + err.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
+
+/* =========================================================================
+   SATCLI — import Excel (RACC_OK / RACC_NOK / SAV), calcul automatique et
+   affichage partagé (Tableau de bord + onglet SatCli + Rapport).
+   Les fichiers importés restent enregistrés dans ce navigateur (localStorage).
+   ========================================================================= */
+const SATCLI_DATA_KEY = 'suiviTech_satcliData_v1';
+const SATCLI_SOURCES = [
+  { key:'raccoOk',  label:'Racco OK',  fileInputId:'satcliFileRaccoOk',  statusId:'satcliStatusRaccoOk',  passNotes:[5] },
+  { key:'raccoNok', label:'Racco NOK', fileInputId:'satcliFileRaccoNok', statusId:'satcliStatusRaccoNok', passNotes:[5] },
+  { key:'sav',      label:'SAV',       fileInputId:'satcliFileSav',      statusId:'satcliStatusSav',      passNotes:[3,4,5] }
+];
+
+function loadSatcliData(){
+  try{
+    const raw = localStorage.getItem(SATCLI_DATA_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {};
+}
+function saveSatcliData(){
+  try{ localStorage.setItem(SATCLI_DATA_KEY, JSON.stringify(state.satcliData)); }catch(e){}
+}
+state.satcliData = loadSatcliData();
+
+function satcliClassePct(pct){
+  if (pct >= 90) return 'pct-good';
+  if (pct >= 75) return 'pct-mid';
+  return 'pct-bad';
+}
+function satcliNormaliser(nom){
+  return String(nom||'').replace(/["']/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+}
+function satcliTrouverColonne(ligne, cibles){
+  const cles = Object.keys(ligne);
+  for(const cible of cibles){
+    const cn = satcliNormaliser(cible);
+    const trouve = cles.find(k=>satcliNormaliser(k)===cn);
+    if(trouve) return trouve;
+  }
+  for(const cible of cibles){
+    const cn = satcliNormaliser(cible);
+    const trouve = cles.find(k=>satcliNormaliser(k).includes(cn));
+    if(trouve) return trouve;
+  }
+  return null;
+}
+function satcliAfficherStatut(msg, ok){
+  const el = document.getElementById('satcliStatut');
+  if(!el) return;
+  el.className = ok ? 'ok' : 'err';
+  el.textContent = (ok ? '✓ ' : '⚠ ') + msg;
+}
+
+function satcliImporterFichier(source, fichier){
+  const lecteur = new FileReader();
+  lecteur.onload = function(evt){
+    try{
+      const donnees = new Uint8Array(evt.target.result);
+      const classeur = XLSX.read(donnees, {type:'array', cellDates:true});
+      const feuille = classeur.Sheets[classeur.SheetNames[0]];
+      const lignes = feuille ? XLSX.utils.sheet_to_json(feuille, {defval:''}) : [];
+
+      let rows = [];
+      let ignorees = 0;
+      if(lignes.length){
+        const premiere = lignes[0];
+        const colTech = satcliTrouverColonne(premiere, ['TIC','Technicien']);
+        const colNote = satcliTrouverColonne(premiere, ['NOTE','Note']);
+        if(!colNote){
+          satcliAfficherStatut(`Colonne « NOTE » introuvable dans le fichier ${source.label}. Vérifiez l'en-tête.`, false);
+          return;
+        }
+        rows = lignes.map(l=>{
+          const note = parseInt(String(l[colNote]).trim(), 10);
+          if(isNaN(note)){ ignorees++; return null; }
+          const tech = colTech ? String(l[colTech]||'').trim() : '';
+          return { technicien: tech || '—', note };
+        }).filter(Boolean);
+      }
+      // Fichier vide (0 ligne de données ou aucune feuille exploitable) : accepté quand même, avec 0 résultat.
+
+      state.satcliData[source.key] = { rows, fileName: fichier.name, importedAt: new Date().toISOString() };
+      saveSatcliData();
+      const msg = rows.length
+        ? `${source.label} mis à jour : ${rows.length} ligne(s) enregistrée(s)` + (ignorees ? `, ${ignorees} ignorée(s) (note illisible)` : '') + '.'
+        : `${source.label} importé : fichier vide, pris en compte comme 0 retour.`;
+      satcliAfficherStatut(msg, true);
+      renderSatcliAll();
+    }catch(err){
+      satcliAfficherStatut(`Impossible de lire le fichier ${source.label} : ` + err.message, false);
+    }
+  };
+  lecteur.readAsArrayBuffer(fichier);
+}
+SATCLI_SOURCES.forEach(source=>{
+  const input = document.getElementById(source.fileInputId);
+  if(input){
+    input.addEventListener('change', function(e){
+      const fichier = e.target.files[0];
+      if(!fichier) return;
+      satcliImporterFichier(source, fichier);
+    });
+  }
+});
+
+function computeSatcliStats(){
+  let totalPos=0, totalAll=0;
+  const detail = SATCLI_SOURCES.map(s=>{
+    const d = state.satcliData[s.key];
+    const rows = d ? d.rows : [];
+    let pos=0;
+    rows.forEach(r=>{ if(s.passNotes.includes(r.note)) pos++; });
+    const total = rows.length;
+    totalPos += pos; totalAll += total;
+    return { key:s.key, label:s.label, pos, neg: total-pos, total, rate: total ? Math.round(pos/total*100) : 0 };
+  });
+  return { detail, totalPos, totalAll, rate: totalAll ? Math.round(totalPos/totalAll*100) : 0 };
+}
+function computeSatcliByTech(){
+  const byTech = {};
+  SATCLI_SOURCES.forEach(s=>{
+    const d = state.satcliData[s.key];
+    const rows = d ? d.rows : [];
+    rows.forEach(r=>{
+      const tech = r.technicien || '—';
+      if(tech === '—') return;
+      if(!byTech[tech]) byTech[tech] = { pos:0, neg:0 };
+      if(s.passNotes.includes(r.note)) byTech[tech].pos++; else byTech[tech].neg++;
+    });
+  });
+  return byTech;
+}
+
+// Jauge partagée : dessine le taux d'UNE typologie (pas une moyenne) dans un canvas/légende donné.
+function renderSatcliGaugeInto(canvasId, legendId, d, stateChartKey){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const legendEl = document.getElementById(legendId);
+  if(legendEl){
+    legendEl.innerHTML = `
+      <li><span class="swatch" style="background:#1E8E5A"></span>Retour positif <b>${d.pos}</b></li>
+      <li><span class="swatch" style="background:#C0392B"></span>Retour négatif <b>${d.neg}</b></li>
+      <li><span class="swatch" style="background:#0E7490"></span>Taux <b>${d.rate}%</b></li>`;
+  }
+  if(state[stateChartKey]) state[stateChartKey].destroy();
+  state[stateChartKey] = renderGaugeHalf(canvasId, d.pos, d.total, '#0E7490');
+}
+
+// Construit 3 cartes "chart-card" (dashboard / onglet SatCli), une jauge par typologie.
+function satcliBuildChartCardsHtml(prefix){
+  return SATCLI_SOURCES.map(s=>`
+    <div class="chart-card">
+      <h3>${escapeHtml(s.label)}</h3>
+      <p class="sub">Taux de retours positifs</p>
+      <div class="chart-wrap chart-wrap-gauge">
+        <div class="chart-canvas-box"><canvas id="canvas${prefix}_${s.key}"></canvas></div>
+        <ul class="legend-list" id="legend${prefix}_${s.key}"></ul>
+      </div>
+    </div>`).join('');
+}
+// Construit 3 mini-jauges compactes (utilisées dans le Rapport).
+function satcliBuildMiniGaugesHtml(prefix){
+  return SATCLI_SOURCES.map(s=>`
+    <div class="rop-mini-gauge">
+      <h4>${escapeHtml(s.label)}</h4>
+      <div class="rop-gauge-box"><canvas id="canvas${prefix}_${s.key}"></canvas></div>
+      <ul class="legend-list" id="legend${prefix}_${s.key}"></ul>
+    </div>`).join('');
+}
+function satcliEnsureContainer(containerId, buildFn, prefix){
+  const el = document.getElementById(containerId);
+  if(!el || el.dataset.built === '1') return;
+  el.innerHTML = buildFn(prefix);
+  el.dataset.built = '1';
+}
+
+function renderSatcliTypeTable(stats){
+  const wrap = document.getElementById('satcliTableWrap');
+  if(!wrap) return;
+  if(!stats.totalAll){
+    wrap.innerHTML = '<div class="chart-empty">Importez vos 3 fichiers pour afficher les résultats.</div>';
+    return;
+  }
+  let html = `<table class="satcli-table"><tr><th>Typologie</th><th class="num">Retour positif</th><th class="num">Retour négatif</th><th class="num">Total</th><th class="num">Taux</th></tr>`;
+  stats.detail.forEach(d=>{
+    html += `<tr><td>${escapeHtml(d.label)}</td><td class="num mono">${d.pos}</td><td class="num mono">${d.neg}</td><td class="num mono">${d.total}</td><td class="num mono ${d.total?satcliClassePct(d.rate):''}">${d.total?d.rate+'%':'—'}</td></tr>`;
+  });
+  html += `<tr class="total"><td>Total général</td><td class="num mono">${stats.totalPos}</td><td class="num mono">${stats.totalAll-stats.totalPos}</td><td class="num mono">${stats.totalAll}</td><td class="num mono ${satcliClassePct(stats.rate)}">${stats.rate}%</td></tr>`;
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+function renderSatcliTechTable(wrapId){
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  const byTech = computeSatcliByTech();
+  const techs = Object.keys(byTech).sort();
+  if(!techs.length){
+    wrap.innerHTML = '<div class="chart-empty">Aucune donnée pour le moment.</div>';
+    return;
+  }
+  let html = `<table class="satcli-table"><tr><th>Technicien</th><th class="num">Positif</th><th class="num">Négatif</th><th class="num">Total</th><th class="num">Taux</th></tr>`;
+  let tp=0, tn=0;
+  techs.forEach(t=>{
+    const d = byTech[t];
+    const total = d.pos+d.neg;
+    const rate = total ? Math.round(d.pos/total*100) : 0;
+    tp += d.pos; tn += d.neg;
+    html += `<tr><td>${escapeHtml(t)}</td><td class="num mono">${d.pos}</td><td class="num mono">${d.neg}</td><td class="num mono">${total}</td><td class="num mono ${satcliClassePct(rate)}">${rate}%</td></tr>`;
+  });
+  const totalG = tp+tn;
+  const rateG = totalG ? Math.round(tp/totalG*100) : 0;
+  html += `<tr class="total"><td>Total équipe</td><td class="num mono">${tp}</td><td class="num mono">${tn}</td><td class="num mono">${totalG}</td><td class="num mono ${satcliClassePct(rateG)}">${rateG}%</td></tr>`;
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+
+// Rafraîchit tout ce qui affiche la SatCli : onglet dédié, tableau de bord, et rapport.
+// 3 demi-cercles distincts (Racco OK / Racco NOK / SAV) — jamais une moyenne des 3.
+function renderSatcliAll(){
+  const stats = computeSatcliStats();
+
+  satcliEnsureContainer('satcliGaugesDash', satcliBuildChartCardsHtml, 'SatcliDash');
+  satcliEnsureContainer('satcliGaugesTab', satcliBuildChartCardsHtml, 'Satcli');
+  satcliEnsureContainer('satcliGaugesReport', satcliBuildMiniGaugesHtml, 'ReportSatcli');
+
+  stats.detail.forEach(d=>{
+    renderSatcliGaugeInto(`canvasSatcliDash_${d.key}`, `legendSatcliDash_${d.key}`, d, `chartSatcliDash_${d.key}`);
+    renderSatcliGaugeInto(`canvasSatcli_${d.key}`, `legendSatcli_${d.key}`, d, `chartSatcli_${d.key}`);
+    renderSatcliGaugeInto(`canvasReportSatcli_${d.key}`, `legendReportSatcli_${d.key}`, d, `chartReportSatcli_${d.key}`);
+  });
+
+  renderSatcliTypeTable(stats);
+  renderSatcliTechTable('satcliTechTableWrap');
+  renderSatcliTechTable('reportSatcliTableWrap');
+
+  SATCLI_SOURCES.forEach(s=>{
+    const d = state.satcliData[s.key];
+    const statusEl = document.getElementById(s.statusId);
+    if(statusEl && d) statusEl.textContent = `✓ ${d.fileName} — ${d.rows.length} ligne(s), importé le ${fmtDate(new Date(d.importedAt))}`;
+  });
+}
+
+document.getElementById('downloadReportBtn').onclick = async ()=>{
+  const btn = document.getElementById('downloadReportBtn');
+  if(!state.lastReportRange){ return; }
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Génération du PDF...';
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+
+    // Le rapport imprimé occupe une page A4 complète, du haut jusqu'en bas, avec
+    // TOUTES les informations du one-pager (le journal détaillé reste en ligne, non imprimé).
+    const visualEl = document.getElementById('reportOnePager');
+    const canvas = await html2canvas(visualEl, { scale:2, backgroundColor:'#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const maxW = pageWidth - margin*2;
+    const maxH = pageHeight - margin*2;
+
+    // On conserve les proportions réelles du rapport (pas de déformation) tout en
+    // l'ajustant pour occuper le maximum de la page, sur une seule page complète.
+    const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+    const renderW = canvas.width * ratio;
+    const renderH = canvas.height * ratio;
+    const offsetX = margin + (maxW - renderW) / 2;
+    const offsetY = margin + (maxH - renderH) / 2;
+
+    doc.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH);
+
+    const periodVal = document.getElementById('periodInput').value || 'periode';
+    doc.save(`rapport_suivi_techniciens_${periodVal}.pdf`);
+  }catch(err){
+    alert('Erreur lors de la génération du PDF : ' + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = orig;
+  }
+};
+
+function renderReportItem(it){
+  const r = it.row;
+  let title = '', meta = '';
+  if(it.table === 'reclamations'){
+    title = r[0] ? r[0] : (r[1] || 'Réclamation');
+    meta = `${r[5]||'—'} · Statut ${r[4]||'—'} · ${r[6]||''}`;
+  } else if(it.table === 'retards'){
+    title = `${r[1]||'—'} · ${r[2]||'—'}`;
+    meta = `${r[5]||'Motif inconnu'} · Justifié : ${r[6]||'—'}`;
+  }
+  const deptIdx = it.table === 'reclamations' ? 2 : null;
+  const dept = deptIdx !== null ? r[deptIdx] : null;
+  const deptTag = dept ? `<span class="dept-tag" style="background:${deptColor(dept)}">${dept}</span>` : '';
+  const isUnjustified = it.table === 'retards' && (r[6]||'').toString().trim().toLowerCase() === 'non';
+  return `
+    <div class="report-item">
+      <span class="tag${isUnjustified ? ' warn' : ''}">${it.label}</span>
+      <div class="ritem-body">
+        <div class="ritem-title">${deptTag}${title}</div>
+        <div class="ritem-meta">${meta}</div>
+      </div>
+      <div class="ritem-date">${fmtDate(it.date)}</div>
+    </div>`;
+}
+
+/* =========================================================================
+   CONFIG VIEW
+   ========================================================================= */
+function renderConfigForm(){
+  document.getElementById('cfgClientId').value = CONFIG.CLIENT_ID;
+  const wrap = document.getElementById('cfgSheetsWrap');
+  wrap.innerHTML = Object.keys(TABLES).map(key=>{
+    const cfg = CONFIG.SHEETS[key] || { spreadsheetId:'', tab:'Sheet1' };
+    const isCustom = !!TABLES[key].custom;
+    return `
+      <div class="config-sheet-block">
+        <div class="config-sheet-head">
+          <h4>${escapeHtml(TABLES[key].label)}${isCustom ? ' <span style="color:var(--muted);font-weight:400;">(feuille ajoutée)</span>' : ''}</h4>
+          ${isCustom ? `<button type="button" class="config-sheet-del" data-key="${key}">🗑 Supprimer</button>` : ''}
+        </div>
+        <div class="config-grid">
+          <div class="field"><label>ID de la feuille</label><input type="text" id="cfg_${key}_id" value="${cfg.spreadsheetId||''}" placeholder="1AbC...xyz"></div>
+          <div class="field"><label>Nom de l'onglet</label><input type="text" id="cfg_${key}_tab" value="${cfg.tab||''}" placeholder="Sheet1"></div>
+        </div>
+      </div>`;
+  }).join('');
+  wrap.querySelectorAll('.config-sheet-del').forEach(btn=>{
+    btn.onclick = ()=>{
+      const key = btn.getAttribute('data-key');
+      if(!confirm(`Supprimer la feuille « ${TABLES[key].label} » ? Les données déjà chargées ne seront plus affichées.`)) return;
+      delete TABLES[key];
+      delete CONFIG.SHEETS[key];
+      delete state.data[key];
+      saveCustomTables();
+      savePersistedConfig();
+      renderConfigForm();
+      renderCards();
+    };
+  });
+}
+document.getElementById('cfgAddSheetBtn').onclick = ()=>{
+  const name = prompt('Nom de la nouvelle feuille (ex: "Suivi Matériel") :');
+  if(!name || !name.trim()) return;
+  let key = slugifyKey(name);
+  let n = 2;
+  while(TABLES[key]){ key = slugifyKey(name) + '_' + n; n++; }
+  TABLES[key] = {
+    label: name.trim(), icon:'clipboard', dateColIndex: 1, custom:true,
+    columns: [
+      { key:"technicien", label:"Technicien", type:"text", required:true },
+      { key:"date", label:"Date", type:"date", required:true },
+      { key:"commentaire", label:"Commentaire", type:"textarea" }
+    ]
+  };
+  CONFIG.SHEETS[key] = { spreadsheetId:'', tab:'Sheet1' };
+  saveCustomTables();
+  savePersistedConfig();
+  renderConfigForm();
+  renderCards();
+};
+document.getElementById('saveConfigBtn').onclick = ()=>{
+  CONFIG.CLIENT_ID = document.getElementById('cfgClientId').value.trim();
+  Object.keys(TABLES).forEach(key=>{
+    if(!CONFIG.SHEETS[key]) CONFIG.SHEETS[key] = { spreadsheetId:'', tab:'Sheet1' };
+    CONFIG.SHEETS[key].spreadsheetId = document.getElementById(`cfg_${key}_id`).value.trim();
+    CONFIG.SHEETS[key].tab = document.getElementById(`cfg_${key}_tab`).value.trim() || 'Sheet1';
+  });
+  savePersistedConfig();
+  saveCustomTables();
+  document.getElementById('configSavedMsg').style.display = 'inline';
+  setTimeout(()=>{ document.getElementById('configSavedMsg').style.display = 'none'; }, 2000);
+  state.tokenClient = null;
+  document.getElementById('statusText').textContent = CONFIG.CLIENT_ID ? 'Configuré — connexion requise' : 'Non configuré';
+  renderCards();
+};
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+window.addEventListener('load', ()=>{
+  renderConfigForm();
+  renderCards();
+  loadNotes();
+  updateNotesBadge();
+  renderSatcliAll();
+  perfCharger();
+  document.getElementById('statusText').textContent = CONFIG.CLIENT_ID ? 'Configuré — connexion requise' : 'Non configuré';
+  setTimeout(initGis, 400);
+});
+</script>
+</body>
+</html>
