@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Pro - Consommables & Tourets</title>
+    <!-- Favicon SVG -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/></svg>">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-transform duration-300 ease-in-out bg-slate-800 border-l-4 border-indigo-500 text-white p-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-md pointer-events-none">
+        <i id="toastIcon" class="fas text-lg text-indigo-400"></i>
+        <div>
+            <h4 id="toastTitle" class="font-bold text-sm">Notification</h4>
+            <p id="toastMessage" class="text-xs text-slate-300"></p>
+        </div>
+    </div>
+
+    <!-- Navigation Sidebar -->
+    <aside class="w-full md:w-64 bg-slate-800 border-r border-slate-700/60 flex flex-col justify-between shrink-0">
+        <div>
+            <div class="p-5 border-b border-slate-700/50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                        <i class="fas text-lg fa-boxes-stacked"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-base text-white leading-tight">Stock Pro</h1>
+                        <span class="text-[11px] text-emerald-400 font-medium"><i class="fas fa-database text-xs"></i> Supabase Connecté</span>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="p-3 space-y-1">
+                <button onclick="switchTab('whatsapp')" id="nav-whatsapp" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all bg-indigo-600/10 text-indigo-400 border border-indigo-500/30">
+                    <i class="fab text-lg fa-whatsapp text-emerald-400"></i>
+                    <span>Saisie / WhatsApp</span>
+                </button>
+                <button onclick="switchTab('movement')" id="nav-movement" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-all">
+                    <i class="fas text-lg fa-right-left text-amber-400"></i>
+                    <span>Entrées / Sorties</span>
+                </button>
+                <button onclick="switchTab('stock')" id="nav-stock" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-all">
+                    <i class="fas text-lg fa-table text-blue-400"></i>
+                    <span>État du Stock & Alertes</span>
+                </button>
+                <button onclick="switchTab('tech')" id="nav-tech" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-all">
+                    <i class="fas text-lg fa-users text-sky-400"></i>
+                    <span>Rapport Techniciens</span>
+                </button>
+                <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-all">
+                    <i class="fas text-lg fa-chart-pie text-emerald-400"></i>
+                    <span>Graphiques & Tendances</span>
+                </button>
+                <button onclick="switchTab('history')" id="nav-history" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-all">
+                    <i class="fas text-lg fa-history text-purple-400"></i>
+                    <span>Historique & Périodes</span>
+                </button>
+            </nav>
+        </div>
+
+        <div class="p-4 m-3 bg-slate-900/80 rounded-xl border border-slate-700/50 text-xs space-y-2">
+            <div class="flex justify-between items-center text-slate-400">
+                <span>Total Réf. Articles:</span>
+                <span id="stat-total-refs" class="font-bold text-white">0</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-400">
+                <span>Alertes Stock Bas:</span>
+                <span id="stat-low-stock" class="font-bold text-red-400">0</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-900">
+        <!-- Header avec Sélecteur d'Opérateur Défilant en haut -->
+        <header class="h-16 border-b border-slate-700/50 px-6 flex items-center justify-between bg-slate-800/40 shrink-0">
+            <h2 id="page-title" class="text-lg font-semibold text-white flex items-center gap-2">
+                <i class="fab fa-whatsapp text-emerald-400"></i> Synchronisation WhatsApp Bi-Directionnelle
+            </h2>
+            
+            <div class="flex items-center gap-3">
+                <!-- Bouton Choix Défilant Opérateur -->
+                <div class="relative">
+                    <select id="global-op-filter" onchange="syncOpFilter(this.value)" class="bg-indigo-950/80 border border-indigo-500/40 text-indigo-200 text-xs font-semibold px-3.5 py-2 rounded-xl focus:outline-none focus:border-indigo-400 cursor-pointer shadow-lg shadow-indigo-950/40">
+                        <option value="">Tous les Opérateurs</option>
+                        <option value="orange">🍊 Orange</option>
+                        <option value="free">🟦 Free</option>
+                        <option value="bouygues">🔷 Bouygues</option>
+                        <option value="stock_generique">📦 Stock Générique</option>
+                    </select>
+                </div>
+
+                <button onclick="exportStockCSV()" class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-medium text-slate-200 flex items-center gap-2 transition">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-6">
+
+            <!-- SECTION 1: WHATSAPP -->
+            <section id="tab-whatsapp" class="tab-content h-full">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col justify-between shadow-xl">
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center pb-3 border-b border-slate-700">
+                                <h3 class="font-semibold text-slate-200 flex items-center gap-2">
+                                    <i class="fas fa-user-gear text-indigo-400"></i> Technicien & Consommables
+                                </h3>
+                                <button onclick="resetWaForm()" class="text-xs text-slate-400 hover:text-red-400 flex items-center gap-1">
+                                    <i class="fas fa-rotate-right"></i> Vider
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1">Société</label>
+                                    <select id="wa-societe-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                                        <option value="Moba Fibre">Moba Fibre</option>
+                                        <option value="Nexum & Co">Nexum & Co</option>
+                                        <option value="Horizon Groupe">Horizon Groupe</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1">Dépôt / Secteur</label>
+                                    <select id="wa-secteur-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                                        <option value="Garges" selected>Garges</option>
+                                        <option value="Bordeaux">Bordeaux</option>
+                                        <option value="Orthez">Orthez</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Nom & Prénom Technicien</label>
+                                <input type="text" id="wa-tech-name" placeholder="Ex: Jean Dupont" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition" oninput="generateWhatsAppFromFields()">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Opérateur affecté</label>
+                                <select id="wa-op-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition" onchange="generateWhatsAppFromFields()">
+                                    <option value="orange">Orange</option>
+                                    <option value="free">Free</option>
+                                    <option value="bouygues">Bouygues</option>
+                                    <option value="stock_generique">Générique / Stock</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-xs font-medium text-slate-400">Consommables attribués</label>
+                                    <button onclick="addWaItemRow()" class="text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
+                                        <i class="fas fa-plus"></i> Ajouter ligne
+                                    </button>
+                                </div>
+                                <div id="wa-items-container" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-700/50 mt-4">
+                            <button onclick="submitWaOutflow()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition">
+                                <i class="fas fa-check-circle"></i> Valider la sortie de stock (Supabase)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col justify-between shadow-xl">
+                        <div class="flex-1 flex flex-col">
+                            <div class="flex justify-between items-center pb-3 border-b border-slate-700 mb-3">
+                                <h3 class="font-semibold text-slate-200 flex items-center gap-2">
+                                    <i class="fab fa-whatsapp text-emerald-400"></i> Message WhatsApp Bi-Directionnel
+                                </h3>
+                                <span class="text-[11px] bg-slate-700 text-emerald-400 font-medium px-2 py-0.5 rounded-full">Temps Réel</span>
+                            </div>
+                            <textarea id="wa-textarea" class="w-full flex-1 min-h-[220px] bg-slate-900 border border-slate-700 rounded-xl p-4 font-mono text-sm text-emerald-300 focus:outline-none focus:border-emerald-500 transition resize-none leading-relaxed" placeholder="consommable :&#10;&#10;Nom Prénom Technicien&#10;- consso 1 : Quantité" oninput="parseWhatsAppToFields()"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-slate-700/50 mt-4">
+                            <button onclick="copyWaText()" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition">
+                                <i class="fas fa-copy"></i> Copier Texte
+                            </button>
+                            <button onclick="sendWaDirect()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition">
+                                <i class="fab fa-whatsapp"></i> WhatsApp Direct
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: MOUVEMENTS -->
+            <section id="tab-movement" class="tab-content hidden h-full">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col h-full">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-700 gap-3">
+                        <div>
+                            <h3 class="font-semibold text-lg text-white">Gestion des Mouvements Groupés</h3>
+                            <p class="text-xs text-slate-400">Enregistrez plusieurs entrées ou sorties avec choix de la Société et du Dépôt.</p>
+                        </div>
+                        <button onclick="addBatchRow()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition">
+                            <i class="fas fa-plus"></i> Ligne supplémentaire
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-2 text-xs font-semibold text-slate-400 py-3 border-b border-slate-700/60 px-2 mt-2">
+                        <div class="col-span-2">Type / Opérateur</div>
+                        <div class="col-span-2">Société</div>
+                        <div class="col-span-2">Dépôt</div>
+                        <div class="col-span-3">Consommable</div>
+                        <div class="col-span-1 text-center">Qté</div>
+                        <div class="col-span-1">Technicien</div>
+                        <div class="col-span-1 text-right">Action</div>
+                    </div>
+
+                    <div id="batch-rows-container" class="flex-1 overflow-y-auto space-y-2 py-2 pr-1"></div>
+
+                    <div class="pt-4 border-t border-slate-700 flex justify-end gap-3 mt-auto">
+                        <button onclick="clearBatchRows()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-4 py-2.5 rounded-xl transition">
+                            Vider
+                        </button>
+                        <button onclick="submitBatchMovements()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 transition flex items-center gap-2">
+                            <i class="fas fa-save"></i> Enregistrer dans Supabase
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: ÉTAT DU STOCK (WITH OPERATOR FILTER & COMPANY COLUMNS) -->
+            <section id="tab-stock" class="tab-content hidden h-full">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col h-full">
+                    
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-700 gap-4">
+                        <div>
+                            <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                                <i class="fas font-medium fa-boxes-stacked text-indigo-400"></i> ÉTAT DU STOCK (SUPABASE)
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Par défaut : Dépôt de Garges. Colonnes sociétés (Moba / Nexum / Horizon).</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <select id="filter-secteur" onchange="renderStockTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-medium">
+                                <option value="Garges" selected>Dépôt : Garges</option>
+                                <option value="Bordeaux">Dépôt : Bordeaux</option>
+                                <option value="Orthez">Dépôt : Orthez</option>
+                                <option value="">Tous les Dépôts</option>
+                            </select>
+                            <div class="relative w-full sm:w-56">
+                                <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                                <input type="text" id="stock-search" placeholder="Rechercher..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none" oninput="renderStockTable()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-700/60">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-300 text-xs font-semibold border-b border-slate-700">
+                                    <th class="p-3 text-center">N°</th>
+                                    <th class="p-3">Dépôt</th>
+                                    <th class="p-3">Désignation</th>
+                                    <th class="p-3 text-center text-indigo-300 bg-indigo-950/30">Moba Fibre</th>
+                                    <th class="p-3 text-center text-amber-300 bg-amber-950/30">Nexum & Co</th>
+                                    <th class="p-3 text-center text-purple-300 bg-purple-950/30">Horizon Groupe</th>
+                                    <th class="p-3 text-center text-emerald-400 bg-emerald-950/40">Total Général</th>
+                                    <th class="p-3 text-center">Alerte</th>
+                                    <th class="p-3">Unité / Détails</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-table-body" class="divide-y divide-slate-700/50 text-xs font-medium"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: RAPPORT TECHNICIENS -->
+            <section id="tab-tech" class="tab-content hidden h-full">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col h-full">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-700 gap-3">
+                        <h3 class="font-semibold text-lg text-white">Récapitulatif par Technicien</h3>
+                        <div class="flex items-center gap-3">
+                            <input type="text" id="tech-filter-name" placeholder="Filtrer par nom..." class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" oninput="renderTechReport()">
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-700/60">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-400 text-xs font-semibold border-b border-slate-700">
+                                    <th class="p-3">Technicien / Intervenant</th>
+                                    <th class="p-3">Société / Dépôt</th>
+                                    <th class="p-3">Matériel Attribué (Désignation)</th>
+                                    <th class="p-3 text-center">Total Quantité Sortie</th>
+                                    <th class="p-3">Dernière Sortie</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tech-table-body" class="divide-y divide-slate-700/40 text-xs"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: GRAPHIQUES -->
+            <section id="tab-analytics" class="tab-content hidden h-full">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col h-full overflow-y-auto space-y-6">
+                    <div class="flex justify-between items-center pb-4 border-b border-slate-700">
+                        <h3 class="font-semibold text-lg text-white">Tableau de Bord & Graphiques de Consommation</h3>
+                        <span class="text-xs bg-indigo-600/20 text-indigo-300 px-3 py-1 rounded-full font-medium">Analyses en direct</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700/50 flex flex-col items-center">
+                            <h4 class="font-semibold text-xs text-slate-300 mb-3">Volume de Sorties par Opérateur</h4>
+                            <div class="w-full h-64 relative flex justify-center items-center">
+                                <canvas id="chartOperator"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700/50 flex flex-col items-center">
+                            <h4 class="font-semibold text-xs text-slate-300 mb-3">Répartition par Société</h4>
+                            <div class="w-full h-64 relative flex justify-center items-center">
+                                <canvas id="chartSociete"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 6: HISTORIQUE -->
+            <section id="tab-history" class="tab-content hidden h-full">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col h-full">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-700 gap-3">
+                        <h3 class="font-semibold text-lg text-white">Journal d'Historique par Période</h3>
+                        <div class="flex items-center gap-3">
+                            <select id="filter-period" onchange="renderHistoryTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white">
+                                <option value="all">Toutes les périodes</option>
+                                <option value="today">Aujourd'hui</option>
+                                <option value="week">7 derniers jours</option>
+                                <option value="month">Ce mois-ci</option>
+                            </select>
+                            <input type="text" id="history-search" placeholder="Filtrer..." class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white" oninput="renderHistoryTable()">
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-700/60">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-400 text-xs font-semibold border-b border-slate-700">
+                                    <th class="p-3">Horodatage</th>
+                                    <th class="p-3">Type</th>
+                                    <th class="p-3">Société / Dépôt</th>
+                                    <th class="p-3">Opérateur</th>
+                                    <th class="p-3">Désignation</th>
+                                    <th class="p-3 text-center">Quantité</th>
+                                    <th class="p-3">Intervenant</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="divide-y divide-slate-700/40 text-xs"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- SCRIPT -->
+    <script>
+        const SUPABASE_URL = "https://twweuaqznvgubmwyhdxq.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_rge0QLe1o9m50rHn9QKCDA_ItfPPAn6";
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let stockData = [];
+        let historyData = [];
+        let isParsingLocked = false;
+        let chartOpInstance = null;
+        let chartSocInstance = null;
+
+        window.onload = async function() {
+            await loadSupabaseData();
+            addWaItemRow();
+            addBatchRow();
+        };
+
+        async function loadSupabaseData() {
+            try {
+                showToast("Chargement", "Récupération des données Supabase...", "fa-spinner fa-spin", "text-indigo-400");
+                
+                const { data: stock, error: stockErr } = await supabaseClient.from('stock_consommables').select('*').order('reference_id', { ascending: true });
+                if (stockErr) throw stockErr;
+                stockData = stock || [];
+
+                const { data: hist, error: histErr } = await supabaseClient.from('stock_historique').select('*').order('horodatage', { ascending: false }).limit(100);
+                if (histErr) throw histErr;
+                historyData = hist || [];
+
+                renderStockTable();
+                renderTechReport();
+                renderHistoryTable();
+                renderAnalyticsCharts();
+                showToast("Succès", "Données synchronisées avec Supabase !", "fa-check-circle", "text-emerald-400");
+            } catch (err) {
+                console.error(err);
+                showToast("Erreur", "Impossible de contacter Supabase.", "fa-exclamation-triangle", "text-red-400");
+            }
+        }
+
+        function syncOpFilter(opValue) {
+            renderStockTable();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600/10', 'text-indigo-400', 'border', 'border-indigo-500/30');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            activeBtn.classList.add('bg-indigo-600/10', 'text-indigo-400', 'border', 'border-indigo-500/30');
+
+            const titles = {
+                'whatsapp': '<i class="fab fa-whatsapp text-emerald-400"></i> Synchronisation WhatsApp & Supabase',
+                'movement': '<i class="fas fa-right-left text-amber-400"></i> Entrées / Sorties Multi-Dépôts',
+                'stock': '<i class="fas fa-table text-blue-400"></i> État du Stock & Alertes',
+                'tech': '<i class="fas fa-users text-sky-400"></i> Rapport & Suivi Techniciens',
+                'analytics': '<i class="fas fa-chart-pie text-emerald-400"></i> Graphiques & Tendances',
+                'history': '<i class="fas fa-history text-purple-400"></i> Journal d\'Historique par Période'
+            };
+            document.getElementById('page-title').innerHTML = titles[tabId];
+
+            if(tabId === 'analytics') {
+                setTimeout(renderAnalyticsCharts, 150);
+            }
+        }
+
+        // Rendu du tableau avec filtrage dynamique par l'Opérateur sélectionné en haut
+        function renderStockTable() {
+            const tbody = document.getElementById('stock-table-body');
+            const search = document.getElementById('stock-search').value.toLowerCase();
+            const sectorFilter = document.getElementById('filter-secteur').value;
+            const opFilter = document.getElementById('global-op-filter').value;
+            tbody.innerHTML = '';
+
+            let lowStockCount = 0;
+            let totalRefs = 0;
+
+            stockData.forEach(item => {
+                if (sectorFilter && item.secteur !== sectorFilter) return;
+                if (search && !item.designation.toLowerCase().includes(search)) return;
+
+                const moba = item.moba_fibre || 0;
+                const nexum = item.nexum_co || 0;
+                const horizon = item.horizon_groupe || 0;
+                
+                let totalRow = moba + nexum + horizon;
+                if (!opFilter) {
+                    totalRow += (item.free || 0) + (item.orange || 0) + (item.bouygues || 0) + (item.stock_generique || 0);
+                } else {
+                    totalRow += (item[opFilter] || 0);
+                }
+
+                totalRefs++;
+                const isAlert = totalRow <= 3;
+                if (isAlert) lowStockCount++;
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-700/40 transition";
+                row.innerHTML = `
+                    <td class="p-3 text-center font-bold text-slate-400">${item.reference_id}</td>
+                    <td class="p-3 text-amber-300 font-semibold">${item.secteur}</td>
+                    <td class="p-3 text-slate-100 font-medium">${item.designation}</td>
+                    <td class="p-3 text-center text-indigo-300 font-semibold bg-indigo-950/20">${moba}</td>
+                    <td class="p-3 text-center text-amber-300 font-semibold bg-amber-950/20">${nexum}</td>
+                    <td class="p-3 text-center text-purple-300 font-semibold bg-purple-950/20">${horizon}</td>
+                    <td class="p-3 text-center text-emerald-400 font-bold bg-emerald-950/30">${totalRow}</td>
+                    <td class="p-3 text-center">
+                        ${isAlert ? '<span class="px-2 py-1 bg-red-950/80 text-red-400 border border-red-800/60 rounded-full text-[10px] font-bold">Alerte</span>' : '<span class="px-2 py-1 bg-emerald-950/60 text-emerald-400 rounded-full text-[10px]">OK</span>'}
+                    </td>
+                    <td class="p-3 text-slate-400 text-[11px]">${item.unite_details || ''}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('stat-total-refs').innerText = totalRefs;
+            document.getElementById('stat-low-stock').innerText = lowStockCount;
+        }
+
+        function renderTechReport() {
+            const tbody = document.getElementById('tech-table-body');
+            const nameFilter = document.getElementById('tech-filter-name').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            const techMap = {};
+            historyData.filter(h => h.type_mouvement === 'SORTIE').forEach(h => {
+                const tech = h.intervenant || 'Inconnu';
+                if (nameFilter && !tech.toLowerCase().includes(nameFilter)) return;
+
+                const key = `${tech}_${h.designation}`;
+                if (!techMap[key]) {
+                    techMap[key] = {
+                        tech: tech,
+                        societe: h.societe,
+                        secteur: h.secteur,
+                        designation: h.designation,
+                        totalQty: 0,
+                        lastDate: h.horodatage
+                    };
+                }
+                techMap[key].totalQty += h.quantite;
+            });
+
+            Object.values(techMap).forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-700/40 transition";
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-white">${item.tech}</td>
+                    <td class="p-3 text-indigo-300">${item.societe} (${item.secteur})</td>
+                    <td class="p-3 text-slate-200">${item.designation}</td>
+                    <td class="p-3 text-center font-bold text-amber-400">${item.totalQty}</td>
+                    <td class="p-3 text-slate-400 font-mono text-[11px]">${new Date(item.lastDate).toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderAnalyticsCharts() {
+            const opCounts = { orange: 0, free: 0, bouygues: 0, stock_generique: 0 };
+            historyData.filter(h => h.type_mouvement === 'SORTIE').forEach(h => {
+                if (opCounts[h.operator] !== undefined) opCounts[h.operator] += h.quantite;
+            });
+
+            const ctxOp = document.getElementById('chartOperator').getContext('2d');
+            if(chartOpInstance) chartOpInstance.destroy();
+            chartOpInstance = new Chart(ctxOp, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Orange', 'Free', 'Bouygues', 'Générique'],
+                    datasets: [{
+                        data: [opCounts.orange, opCounts.free, opCounts.bouygues, opCounts.stock_generique],
+                        backgroundColor: ['#f97316', '#0ea5e9', '#06b6d4', '#64748b']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 11 } } } } }
+            });
+
+            let mobaTot = 0, nexumTot = 0, horizonTot = 0;
+            stockData.forEach(item => {
+                mobaTot += (item.moba_fibre || 0);
+                nexumTot += (item.nexum_co || 0);
+                horizonTot += (item.horizon_groupe || 0);
+            });
+
+            const ctxSoc = document.getElementById('chartSociete').getContext('2d');
+            if(chartSocInstance) chartSocInstance.destroy();
+            chartSocInstance = new Chart(ctxSoc, {
+                type: 'bar',
+                data: {
+                    labels: ['Moba Fibre', 'Nexum & Co', 'Horizon Groupe'],
+                    datasets: [{
+                        label: 'Total Articles en Stock',
+                        data: [mobaTot, nexumTot, horizonTot],
+                        backgroundColor: ['#6366f1', '#f59e0b', '#a855f7']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { color: '#cbd5e1' } }, x: { ticks: { color: '#cbd5e1' } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderHistoryTable() {
+            const tbody = document.getElementById('history-table-body');
+            const search = document.getElementById('history-search').value.toLowerCase();
+            const period = document.getElementById('filter-period').value;
+            tbody.innerHTML = '';
+
+            const now = new Date();
+            historyData.forEach(h => {
+                const hDate = new Date(h.horodatage);
+                if (period === 'today' && hDate.toDateString() !== now.toDateString()) return;
+                if (period === 'week' && (now - hDate) > 7 * 24 * 3600 * 1000) return;
+                if (period === 'month' && (hDate.getMonth() !== now.getMonth() || hDate.getFullYear() !== now.getFullYear())) return;
+
+                if (h.designation.toLowerCase().includes(search) || h.intervenant.toLowerCase().includes(search)) {
+                    const isOut = h.type_mouvement === 'SORTIE';
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-700/40 transition";
+                    row.innerHTML = `
+                        <td class="p-3 text-slate-400 font-mono text-[11px]">${hDate.toLocaleString()}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isOut ? 'bg-red-950/60 text-red-400' : 'bg-emerald-950/60 text-emerald-400'}">${h.type_mouvement}</span></td>
+                        <td class="p-3 text-indigo-300 font-medium">${h.societe || ''} (${h.secteur || ''})</td>
+                        <td class="p-3 text-slate-300 font-medium">${h.operator || ''}</td>
+                        <td class="p-3 text-white font-medium">${h.designation}</td>
+                        <td class="p-3 text-center font-bold ${isOut ? 'text-red-400' : 'text-emerald-400'}">${isOut ? '-' : '+'}${h.quantite}</td>
+                        <td class="p-3 text-slate-300">${h.intervenant}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+            });
+        }
+
+        function addWaItemRow(itemName = '', itemQty = 1) {
+            const container = document.getElementById('wa-items-container');
+            const rowId = Date.now() + Math.random().toString(36).substring(2, 5);
+            let optionsHtml = [...new Set(stockData.map(item => item.designation))].map(name => `<option value="${name}" ${name === itemName ? 'selected' : ''}>${name}</option>`).join('');
+
+            const row = document.createElement('div');
+            row.id = `wa-row-${rowId}`;
+            row.className = "flex items-center gap-2 bg-slate-900/80 p-2 rounded-xl border border-slate-700/50";
+            row.innerHTML = `
+                <select class="wa-item-select flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" onchange="generateWhatsAppFromFields()">
+                    <option value="">-- Sélectionner un consommable --</option>
+                    ${optionsHtml}
+                </select>
+                <input type="number" min="1" value="${itemQty}" class="wa-item-qty w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white text-center focus:outline-none" oninput="generateWhatsAppFromFields()">
+                <button onclick="document.getElementById('wa-row-${rowId}').remove(); generateWhatsAppFromFields();" class="text-slate-500 hover:text-red-400 p-1.5 text-xs"><i class="fas fa-trash"></i></button>
+            `;
+            container.appendChild(row);
+            if(!itemName) generateWhatsAppFromFields();
+        }
+
+        function resetWaForm() {
+            document.getElementById('wa-items-container').innerHTML = '';
+            document.getElementById('wa-tech-name').value = '';
+            addWaItemRow();
+            generateWhatsAppFromFields();
+        }
+
+        function generateWhatsAppFromFields() {
+            if (isParsingLocked) return;
+            const techName = document.getElementById('wa-tech-name').value.trim() || "[Nom Prénom Technicien]";
+            const selects = document.querySelectorAll('.wa-item-select');
+            const qtys = document.querySelectorAll('.wa-item-qty');
+
+            let message = "consommable :\n\n" + techName + "\n";
+            selects.forEach((select, index) => {
+                if (select.value) {
+                    message += `- ${select.value} : ${qtys[index].value || 1}\n`;
+                }
+            });
+            document.getElementById('wa-textarea').value = message;
+        }
+
+        function parseWhatsAppToFields() {
+            isParsingLocked = true;
+            const text = document.getElementById('wa-textarea').value;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            let techFound = "";
+            let items = [];
+
+            lines.forEach(line => {
+                if (line.toLowerCase().startsWith("consommable")) return;
+                if (line.startsWith("-")) {
+                    const [nameRaw, qtyRaw] = line.replace(/^-/, '').split(':');
+                    if (nameRaw && qtyRaw) {
+                        items.push({ name: nameRaw.trim(), qty: parseInt(qtyRaw.trim()) || 1 });
+                    }
+                } else if (!techFound) {
+                    techFound = line;
+                }
+            });
+
+            if (techFound && !techFound.includes('[')) {
+                document.getElementById('wa-tech-name').value = techFound;
+            }
+
+            const container = document.getElementById('wa-items-container');
+            container.innerHTML = '';
+            if (items.length > 0) {
+                items.forEach(it => addWaItemRow(it.name, it.qty));
+            } else {
+                addWaItemRow();
+            }
+            isParsingLocked = false;
+        }
+
+        async function submitWaOutflow() {
+            const techName = document.getElementById('wa-tech-name').value.trim();
+            if (!techName) {
+                showToast("Erreur", "Veuillez saisir le nom du technicien.", "fa-exclamation-triangle", "text-red-400");
+                return;
+            }
+            const operator = document.getElementById('wa-op-select').value;
+            const societe = document.getElementById('wa-societe-select').value;
+            const secteur = document.getElementById('wa-secteur-select').value;
+            const selects = document.querySelectorAll('.wa-item-select');
+            const qtys = document.querySelectorAll('.wa-item-qty');
+
+            let count = 0;
+            for (let i = 0; i < selects.length; i++) {
+                const name = selects[i].value;
+                const qty = parseInt(qtys[i].value) || 0;
+
+                if (name && qty > 0) {
+                    const item = stockData.find(s => s.designation === name && s.secteur === secteur);
+                    if (item) {
+                        const newQty = Math.max(0, item[operator] - qty);
+                        const { error: updateErr } = await supabaseClient.from('stock_consommables').update({ [operator]: newQty }).eq('id', item.id);
+
+                        if (!updateErr) {
+                            item[operator] = newQty;
+                            await supabaseClient.from('stock_historique').insert([{
+                                type_mouvement: 'SORTIE',
+                                societe: societe,
+                                secteur: secteur,
+                                operator: operator,
+                                designation: item.designation,
+                                quantite: qty,
+                                intervenant: techName
+                            }]);
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            if (count > 0) {
+                await loadSupabaseData();
+                showToast("Succès", `${count} sorties validées et enregistrées sur Supabase !`, "fa-check-circle", "text-emerald-400");
+            }
+        }
+
+        function addBatchRow() {
+            const container = document.getElementById('batch-rows-container');
+            const rowId = Date.now() + Math.random().toString(36).substring(2, 5);
+            let optionsHtml = [...new Set(stockData.map(i => i.designation))].map(name => `<option value="${name}">${name}</option>`).join('');
+
+            const row = document.createElement('div');
+            row.id = `batch-row-${rowId}`;
+            row.className = "grid grid-cols-12 gap-2 items-center bg-slate-900/60 p-2 rounded-xl border border-slate-700/40";
+            row.innerHTML = `
+                <div class="col-span-2 space-y-1">
+                    <select class="batch-type w-full bg-slate-800 border border-slate-700 rounded-lg p-1 text-[11px] text-white"><option value="SORTIE">SORTIE (-)</option><option value="ENTREE">ENTRÉE (+)</option></select>
+                    <select class="batch-op w-full bg-slate-800 border border-slate-700 rounded-lg p-1 text-[11px] text-white"><option value="orange">Orange</option><option value="free">Free</option><option value="bouygues">Bouygues</option><option value="stock_generique">Générique</option></select>
+                </div>
+                <div class="col-span-2">
+                    <select class="batch-societe w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white"><option value="Moba Fibre">Moba Fibre</option><option value="Nexum & Co">Nexum & Co</option><option value="Horizon Groupe">Horizon Groupe</option></select>
+                </div>
+                <div class="col-span-2">
+                    <select class="batch-secteur w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white"><option value="Garges">Garges</option><option value="Bordeaux">Bordeaux</option><option value="Orthez">Orthez</option></select>
+                </div>
+                <div class="col-span-3">
+                    <select class="batch-item w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white">${optionsHtml}</select>
+                </div>
+                <div class="col-span-1">
+                    <input type="number" min="1" value="1" class="batch-qty w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white text-center">
+                </div>
+                <div class="col-span-1">
+                    <input type="text" placeholder="Tech..." class="batch-tech w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-xs text-white">
+                </div>
+                <div class="col-span-1 text-right">
+                    <button onclick="document.getElementById('batch-row-${rowId}').remove()" class="text-slate-500 hover:text-red-400 p-1 text-xs"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function clearBatchRows() {
+            document.getElementById('batch-rows-container').innerHTML = '';
+            addBatchRow();
+        }
+
+        async function submitBatchMovements() {
+            const rows = document.querySelectorAll('#batch-rows-container > div');
+            let count = 0;
+
+            for (const r of rows) {
+                const type = r.querySelector('.batch-type').value;
+                const op = r.querySelector('.batch-op').value;
+                const societe = r.querySelector('.batch-societe').value;
+                const secteur = r.querySelector('.batch-secteur').value;
+                const itemName = r.querySelector('.batch-item').value;
+                const qty = parseInt(r.querySelector('.batch-qty').value) || 0;
+                const tech = r.querySelector('.batch-tech').value.trim() || 'Magasinier';
+
+                const item = stockData.find(s => s.designation === itemName && s.secteur === secteur);
+                if (item && qty > 0) {
+                    const newQty = type === 'ENTREE' ? item[op] + qty : Math.max(0, item[op] - qty);
+
+                    const { error } = await supabaseClient.from('stock_consommables').update({ [op]: newQty }).eq('id', item.id);
+                    if (!error) {
+                        item[op] = newQty;
+                        await supabaseClient.from('stock_historique').insert([{
+                            type_mouvement: type,
+                            societe: societe,
+                            secteur: secteur,
+                            operator: op,
+                            designation: item.designation,
+                            quantite: qty,
+                            intervenant: tech
+                        }]);
+                        count++;
+                    }
+                }
+            }
+
+            if (count > 0) {
+                await loadSupabaseData();
+                showToast("Succès", `${count} mouvements enregistrés dans Supabase !`, "fa-check-circle", "text-emerald-400");
+                clearBatchRows();
+            }
+        }
+
+        function copyWaText() {
+            navigator.clipboard.writeText(document.getElementById('wa-textarea').value);
+            showToast("Copié", "Message WhatsApp copié dans le presse-papier.", "fa-copy", "text-emerald-400");
+        }
+
+        function sendWaDirect() {
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(document.getElementById('wa-textarea').value)}`, '_blank');
+        }
+
+        function exportStockCSV() {
+            let csv = "ID;Secteur;Désignation;Moba Fibre;Nexum & Co;Horizon Groupe;Total;Détails\n";
+            stockData.forEach(i => {
+                const tot = (i.moba_fibre||0) + (i.nexum_co||0) + (i.horizon_groupe||0) + (i.free||0) + (i.orange||0) + (i.bouygues||0) + (i.stock_generique||0);
+                csv += `${i.reference_id};"${i.secteur}";"${i.designation}";${i.moba_fibre||0};${i.nexum_co||0};${i.horizon_groupe||0};${tot};"${i.unite_details || ''}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', `Stock_Supabase_${new Date().toISOString().slice(0,10)}.csv`);
+            link.click();
+        }
+
+        function showToast(title, message, icon, colorClass) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').innerText = title;
+            document.getElementById('toastMessage').innerText = message;
+            document.getElementById('toastIcon').className = `fas ${icon} ${colorClass}`;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => toast.classList.add('translate-x-full'), 3500);
+        }
+    </script>
+</body>
+</html>
